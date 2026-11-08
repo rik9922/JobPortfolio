@@ -1,0 +1,31 @@
+{
+  "name": "ritik-thakre-3d-portfolio",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Ritik Thakre — Immersive 3D Live Portfolio | QA Engineer, Test Automation & AI-Assisted Software Development",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@react-three/drei": "^9.121.4",
+    "@react-three/fiber": "^8.17.12",
+    "gsap": "^3.12.7",
+    "lucide-react": "^0.475.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "three": "^0.170.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.3.5",
+    "@types/react": "^18.3.18",
+    "@types/react-dom": "^18.3.5",
+    "@types/three": "^0.170.0",
+    "@vitejs/plugin-react": "^4.3.4",
+    "tailwindcss": "^4.3.5",
+    "typescript": "~5.7.2",
+    "vite": "^6.1.0"
+  }
+}

@@ -1,619 +1,837 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Canvas, useFrame, useThree } from '@react-three/fiber';
+import { Canvas, useFrame } from '@react-three/fiber';
 import {
-  Edges,
+  Environment,
   Float,
-  Html,
+  Lightformer,
   Line,
-  OrbitControls,
+  MeshTransmissionMaterial,
   QuadraticBezierLine,
+  RoundedBox,
+  Sparkles,
 } from '@react-three/drei';
 import * as THREE from 'three';
-import { CAMERA_WAYPOINTS, CAPABILITY_DOMAINS } from '../../data/portfolioData';
-import { CoreSimulationState, SectionId } from '../../types/portfolio';
+import { CHAPTER_WAYPOINTS, CHAPTERS } from '../../data/portfolioData';
+import { CapabilityId, ChapterId } from '../../types/portfolio';
 
-interface VerificationCoreSceneProps {
-  activeSection: SectionId;
+interface SculpturalWorldProps {
+  activeChapter: ChapterId;
   scrollProgress: number;
-  activeCapabilityId: string;
-  onSelectCapability: (id: string) => void;
-  simulationState: CoreSimulationState;
-  inspectMode: boolean;
+  activePlatformIndex: number;
+  activeCapabilityId: CapabilityId;
+  activeLensIndex: number;
   reducedMotion: boolean;
 }
 
-const VERTEX_SHADER = `
+const RIBBON_VERTEX_SHADER = `
   uniform float uTime;
-  uniform float uDisplaceStrength;
+  varying vec2 vUv;
   varying vec3 vNormal;
-  varying vec3 vPosition;
-  varying vec3 vViewPosition;
-  varying float vPattern;
+  varying float vWave;
 
   void main() {
+    vUv = uv;
     vNormal = normalize(normalMatrix * normal);
-    
-    float wave1 = sin(position.x * 3.5 + uTime * 1.8) * cos(position.y * 3.5 + uTime * 1.4);
-    float wave2 = sin(position.z * 4.2 - uTime * 2.1);
-    float displacement = (wave1 * 0.6 + wave2 * 0.4) * uDisplaceStrength;
-    
-    vPattern = wave1 * 0.5 + 0.5;
-    vec3 displacedPosition = position + normal * displacement;
-    vPosition = displacedPosition;
-
-    vec4 mvPosition = modelViewMatrix * vec4(displacedPosition, 1.0);
-    vViewPosition = -mvPosition.xyz;
-    gl_Position = projectionMatrix * mvPosition;
+    float wave = sin(position.x * 2.4 + uTime * 1.4) * cos(position.y * 2.0 + uTime * 1.1) * 0.14;
+    vWave = wave;
+    vec3 pos = position + normal * wave;
+    gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
   }
 `;
 
-const FRAGMENT_SHADER = `
+const RIBBON_FRAGMENT_SHADER = `
   uniform float uTime;
-  uniform vec3 uPrimaryColor;
-  uniform vec3 uSecondaryColor;
-  uniform float uAccentIntensity;
+  uniform vec3 uColorA;
+  uniform vec3 uColorB;
+  varying vec2 vUv;
   varying vec3 vNormal;
-  varying vec3 vPosition;
-  varying vec3 vViewPosition;
-  varying float vPattern;
+  varying float vWave;
 
   void main() {
-    vec3 normal = normalize(vNormal);
-    vec3 viewDir = normalize(vViewPosition);
-    
-    // Fresnel rim calculation
-    float fresnel = pow(1.0 - max(dot(normal, viewDir), 0.0), 2.4);
-    
-    // Procedural telemetry scanlines
-    float scanlineH = sin(vPosition.y * 28.0 - uTime * 4.0) * 0.5 + 0.5;
-    float scanlineV = cos(vPosition.x * 22.0 + uTime * 2.5) * 0.5 + 0.5;
-    float gridBand = smoothstep(0.88, 0.98, scanlineH) + smoothstep(0.92, 0.99, scanlineV) * 0.55;
-    
-    vec3 baseDark = vec3(0.04, 0.05, 0.08);
-    vec3 coreMix = mix(uPrimaryColor, uSecondaryColor, vPattern);
-    
-    vec3 finalColor = mix(baseDark, coreMix, fresnel * 0.82 + gridBand * 0.35);
-    finalColor += uPrimaryColor * fresnel * 0.65 * uAccentIntensity;
-    finalColor += uSecondaryColor * gridBand * 0.28;
-
-    gl_FragColor = vec4(finalColor, 0.95);
+    float rim = pow(1.0 - abs(dot(vNormal, vec3(0.0, 0.0, 1.0))), 1.8);
+    float shimmer = sin(vUv.x * 18.0 + uTime * 2.0) * 0.5 + 0.5;
+    vec3 col = mix(uColorA, uColorB, vUv.y + vWave * 2.2);
+    col += vec3(0.96, 0.94, 0.90) * rim * 0.55;
+    col += uColorB * shimmer * 0.18;
+    gl_FragColor = vec4(col, 0.92);
   }
 `;
 
-const STATE_COLORS: Record<CoreSimulationState, { primary: string; secondary: string; displace: number }> = {
-  nominal: { primary: '#10B981', secondary: '#FF4D29', displace: 0.045 },
-  executing: { primary: '#FF4D29', secondary: '#38BDF8', displace: 0.085 },
-  defect_trace: { primary: '#F59E0B', secondary: '#FF4D29', displace: 0.115 },
-  ai_synthesis: { primary: '#A78BFA', secondary: '#10B981', displace: 0.075 },
-};
-
-function TelemetryParticleField({
-  reducedMotion,
-  simulationState,
-}: {
-  reducedMotion: boolean;
-  simulationState: CoreSimulationState;
-}) {
-  const pointsRef = useRef<THREE.Points>(null);
-
-  const { positions, colors } = useMemo(() => {
-    const count = 950;
-    const pos = new Float32Array(count * 3);
-    const col = new Float32Array(count * 3);
-
-    const cVermilion = new THREE.Color('#FF4D29');
-    const cEmerald = new THREE.Color('#10B981');
-    const cSlate = new THREE.Color('#646B78');
-
-    for (let i = 0; i < count; i++) {
-      // Deterministic pseudo-random distribution using golden angle
-      const t = i / count;
-      const angle = i * 2.399963229728653;
-      const radius = 3.2 + (i % 19) * 0.55;
-      const ySpread = ((i % 37) / 37 - 0.5) * 9.5;
-
-      pos[i * 3] = Math.cos(angle) * radius;
-      pos[i * 3 + 1] = ySpread;
-      pos[i * 3 + 2] = Math.sin(angle) * radius - 1.5;
-
-      const picked = t < 0.16 ? cVermilion : t < 0.34 ? cEmerald : cSlate;
-      col[i * 3] = picked.r;
-      col[i * 3 + 1] = picked.g;
-      col[i * 3 + 2] = picked.b;
-    }
-    return { positions: pos, colors: col };
-  }, []);
-
-  useFrame((_, delta) => {
-    if (!pointsRef.current || reducedMotion) return;
-    const speedMultiplier = simulationState === 'executing' ? 2.1 : 1.0;
-    pointsRef.current.rotation.y += delta * 0.032 * speedMultiplier;
-    pointsRef.current.rotation.x = Math.sin(performance.now() * 0.0002) * 0.06;
-  });
-
+function StudioLightingRig() {
   return (
-    <points ref={pointsRef}>
-      <bufferGeometry>
-        <bufferAttribute
-          attach="attributes-position"
-          count={positions.length / 3}
-          array={positions}
-          itemSize={3}
+    <Environment resolution={256}>
+      <group rotation={[-Math.PI / 4, -0.3, 0]}>
+        <Lightformer
+          form="rect"
+          intensity={3.5}
+          position={[8, 6, -4]}
+          scale={[10, 6, 1]}
+          color="#F5F2EB"
         />
-        <bufferAttribute
-          attach="attributes-color"
-          count={colors.length / 3}
-          array={colors}
-          itemSize={3}
+        <Lightformer
+          form="circle"
+          intensity={4.2}
+          position={[-7, 4, -2]}
+          scale={[5, 5, 1]}
+          color="#E85D3F"
         />
-      </bufferGeometry>
-      <pointsMaterial
-        size={0.036}
-        vertexColors
-        transparent
-        opacity={0.68}
-        sizeAttenuation
-        depthWrite={false}
-      />
-    </points>
-  );
-}
-
-function ArchitecturalReferenceGrid() {
-  const gridPoints = useMemo(() => {
-    const lines: [number, number, number][][] = [];
-    const extent = 14;
-    const step = 1.75;
-    for (let i = -extent; i <= extent; i += step) {
-      lines.push([
-        [i, -3.3, -extent],
-        [i, -3.3, extent],
-      ]);
-      lines.push([
-        [-extent, -3.3, i],
-        [extent, -3.3, i],
-      ]);
-    }
-    return lines;
-  }, []);
-
-  return (
-    <group>
-      {gridPoints.map((pts, idx) => (
-        <Line
-          key={idx}
-          points={pts}
-          color="#232834"
-          lineWidth={0.6}
-          transparent
-          opacity={0.28}
+        <Lightformer
+          form="ring"
+          intensity={2.4}
+          position={[0, -6, 2]}
+          scale={[9, 9, 1]}
+          color="#6EE7B7"
         />
-      ))}
-    </group>
-  );
-}
-
-function OrbitalSatelliteNode({
-  domain,
-  isSelected,
-  onSelect,
-  ringSpread,
-  reducedMotion,
-  showLabel,
-}: {
-  domain: (typeof CAPABILITY_DOMAINS)[0];
-  isSelected: boolean;
-  onSelect: (id: string) => void;
-  ringSpread: number;
-  reducedMotion: boolean;
-  showLabel: boolean;
-}) {
-  const groupRef = useRef<THREE.Group>(null);
-  const meshRef = useRef<THREE.Mesh>(null);
-  const [hovered, setHovered] = useState(false);
-
-  const basePosition = useMemo<[number, number, number]>(() => {
-    const r = domain.orbitRadius * ringSpread;
-    return [
-      Math.cos(domain.orbitAngle) * r,
-      domain.orbitHeight,
-      Math.sin(domain.orbitAngle) * r,
-    ];
-  }, [domain.orbitAngle, domain.orbitHeight, domain.orbitRadius, ringSpread]);
-
-  useFrame((_, delta) => {
-    if (meshRef.current && !reducedMotion) {
-      meshRef.current.rotation.x += delta * (isSelected || hovered ? 1.4 : 0.45);
-      meshRef.current.rotation.y += delta * (isSelected || hovered ? 1.8 : 0.6);
-    }
-    if (groupRef.current) {
-      groupRef.current.position.x = THREE.MathUtils.damp(
-        groupRef.current.position.x,
-        basePosition[0],
-        4,
-        delta
-      );
-      groupRef.current.position.y = THREE.MathUtils.damp(
-        groupRef.current.position.y,
-        basePosition[1],
-        4,
-        delta
-      );
-      groupRef.current.position.z = THREE.MathUtils.damp(
-        groupRef.current.position.z,
-        basePosition[2],
-        4,
-        delta
-      );
-    }
-  });
-
-  const activeHighlight = isSelected || hovered;
-
-  return (
-    <group>
-      <QuadraticBezierLine
-        start={[0, 0, 0]}
-        mid={[basePosition[0] * 0.45, basePosition[1] + 0.55, basePosition[2] * 0.45]}
-        end={basePosition}
-        color={activeHighlight ? domain.color : '#2E3442'}
-        lineWidth={activeHighlight ? 2.2 : 0.9}
-        transparent
-        opacity={activeHighlight ? 0.92 : 0.35}
-        dashed={!activeHighlight}
-        dashScale={6}
-        dashSize={0.4}
-        gapSize={0.2}
-      />
-
-      <group ref={groupRef} position={basePosition}>
-        <mesh
-          ref={meshRef}
-          onClick={(e) => {
-            e.stopPropagation();
-            onSelect(domain.id);
-          }}
-          onPointerOver={(e) => {
-            e.stopPropagation();
-            setHovered(true);
-          }}
-          onPointerOut={() => setHovered(false)}
-          scale={activeHighlight ? 1.28 : 1.0}
-        >
-          <octahedronGeometry args={[0.24, 0]} />
-          <meshStandardMaterial
-            color={activeHighlight ? domain.color : '#171A21'}
-            emissive={domain.color}
-            emissiveIntensity={activeHighlight ? 0.85 : 0.22}
-            metalness={0.85}
-            roughness={0.2}
-          />
-          <Edges scale={1.06} threshold={15} color={domain.color} />
-        </mesh>
-
-        {/* Outer orbital halo on active node */}
-        <mesh rotation={[Math.PI / 2, 0, 0]} scale={activeHighlight ? 1.45 : 1.0}>
-          <ringGeometry args={[0.32, 0.35, 32]} />
-          <meshBasicMaterial
-            color={domain.color}
-            side={THREE.DoubleSide}
-            transparent
-            opacity={activeHighlight ? 0.85 : 0.25}
-          />
-        </mesh>
-
-        {showLabel && (
-          <Html
-            position={[0, 0.44, 0]}
-            center
-            zIndexRange={[5, 0]}
-          >
-            <button
-              type="button"
-              onClick={() => onSelect(domain.id)}
-              className={`core-node-tag ${activeHighlight ? 'core-node-tag--active' : ''}`}
-              style={
-                {
-                  '--node-color': domain.color,
-                } as React.CSSProperties
-              }
-              aria-label={`Inspect ${domain.title} node`}
-            >
-              <span className="core-node-tag__idx">{domain.index}</span>
-              <span className="core-node-tag__txt">{domain.shortTitle}</span>
-            </button>
-          </Html>
-        )}
+        <Lightformer
+          form="rect"
+          intensity={2.0}
+          position={[0, 8, 5]}
+          scale={[12, 2, 1]}
+          color="#D6C7B2"
+        />
       </group>
-    </group>
+    </Environment>
   );
 }
 
-function VerificationCoreAssembly({
-  activeSection,
-  scrollProgress,
-  activeCapabilityId,
-  onSelectCapability,
-  simulationState,
-  inspectMode,
-  reducedMotion,
-}: VerificationCoreSceneProps) {
-  const { camera } = useThree();
-  const rootGroupRef = useRef<THREE.Group>(null);
-  const kernelMeshRef = useRef<THREE.Mesh>(null);
-  const cageMeshRef = useRef<THREE.Mesh>(null);
-  const ringExploreRef = useRef<THREE.Mesh>(null);
-  const ringAutomateRef = useRef<THREE.Mesh>(null);
-  const ringAiRef = useRef<THREE.Mesh>(null);
-  const platformGroupRef = useRef<THREE.Group>(null);
-  const shaderMatRef = useRef<THREE.ShaderMaterial>(null);
-
-  const cameraLookAtRef = useRef(new THREE.Vector3(0.85, 0.05, 0));
-
-  const selectedDomain = useMemo(
-    () => CAPABILITY_DOMAINS.find((d) => d.id === activeCapabilityId) || CAPABILITY_DOMAINS[0],
-    [activeCapabilityId]
-  );
+/* ==========================================================================
+   CHAPTER 1 INSTALLATION (z = 0): THE KINETIC PRISM MONOLITH
+   ========================================================================== */
+function HeroPrismMonolith({ reducedMotion }: { reducedMotion: boolean }) {
+  const groupRef = useRef<THREE.Group>(null);
+  const monolithLeftRef = useRef<THREE.Mesh>(null);
+  const monolithCenterRef = useRef<THREE.Mesh>(null);
+  const monolithRightRef = useRef<THREE.Mesh>(null);
+  const sculptureKnotRef = useRef<THREE.Mesh>(null);
+  const shaderRef = useRef<THREE.ShaderMaterial>(null);
 
   const uniforms = useMemo(
     () => ({
       uTime: { value: 0 },
-      uDisplaceStrength: { value: 0.045 },
-      uPrimaryColor: { value: new THREE.Color('#10B981') },
-      uSecondaryColor: { value: new THREE.Color('#FF4D29') },
-      uAccentIntensity: { value: 1.0 },
+      uColorA: { value: new THREE.Color('#E85D3F') },
+      uColorB: { value: new THREE.Color('#D6C7B2') },
     }),
     []
   );
 
   useFrame((state, delta) => {
-    const waypoint = CAMERA_WAYPOINTS[activeSection] || CAMERA_WAYPOINTS.hero;
-    const stateSpec = STATE_COLORS[simulationState] || STATE_COLORS.nominal;
-
-    // Update shader uniforms without triggering React re-renders
-    if (shaderMatRef.current) {
-      if (!reducedMotion) {
-        shaderMatRef.current.uniforms.uTime.value +=
-          delta * (simulationState === 'executing' ? 1.85 : 1.0);
-      }
-      shaderMatRef.current.uniforms.uDisplaceStrength.value = THREE.MathUtils.damp(
-        shaderMatRef.current.uniforms.uDisplaceStrength.value,
-        reducedMotion ? 0.015 : stateSpec.displace,
-        4,
-        delta
-      );
-
-      const targetPrimary = new THREE.Color(
-        activeSection === 'capabilities' ? selectedDomain.color : stateSpec.primary
-      );
-      const targetSecondary = new THREE.Color(stateSpec.secondary);
-
-      shaderMatRef.current.uniforms.uPrimaryColor.value.lerp(targetPrimary, delta * 3.5);
-      shaderMatRef.current.uniforms.uSecondaryColor.value.lerp(targetSecondary, delta * 3.5);
-      shaderMatRef.current.uniforms.uAccentIntensity.value = THREE.MathUtils.damp(
-        shaderMatRef.current.uniforms.uAccentIntensity.value,
-        waypoint.accentIntensity,
-        4,
-        delta
-      );
+    if (shaderRef.current && !reducedMotion) {
+      shaderRef.current.uniforms.uTime.value += delta;
     }
+    if (!groupRef.current) return;
 
-    // Camera choreography when not in manual OrbitControls inspect mode
-    if (!inspectMode) {
-      const pointerOffsetX = reducedMotion ? 0 : state.pointer.x * 0.38;
-      const pointerOffsetY = reducedMotion ? 0 : state.pointer.y * 0.26;
+    const px = reducedMotion ? 0 : state.pointer.x * 0.28;
+    const py = reducedMotion ? 0 : state.pointer.y * 0.2;
 
-      // Subtle viewport compensation for narrow screens so the 3D core stays centered and visible
-      const isCompactViewport = state.size.width < 900;
-      const targetCamX = isCompactViewport ? 0 : waypoint.position[0] + pointerOffsetX;
-      const targetCamY = (isCompactViewport ? waypoint.position[1] + 0.35 : waypoint.position[1]) + pointerOffsetY;
-      const targetCamZ = isCompactViewport ? waypoint.position[2] + 1.45 : waypoint.position[2];
-
-      camera.position.x = THREE.MathUtils.damp(camera.position.x, targetCamX, 3.2, delta);
-      camera.position.y = THREE.MathUtils.damp(camera.position.y, targetCamY, 3.2, delta);
-      camera.position.z = THREE.MathUtils.damp(camera.position.z, targetCamZ, 3.2, delta);
-
-      const lookX = isCompactViewport ? 0 : waypoint.target[0];
-      const lookY = isCompactViewport ? 0.1 : waypoint.target[1];
-      const lookZ = waypoint.target[2];
-
-      cameraLookAtRef.current.x = THREE.MathUtils.damp(cameraLookAtRef.current.x, lookX, 3.8, delta);
-      cameraLookAtRef.current.y = THREE.MathUtils.damp(cameraLookAtRef.current.y, lookY, 3.8, delta);
-      cameraLookAtRef.current.z = THREE.MathUtils.damp(cameraLookAtRef.current.z, lookZ, 3.8, delta);
-      camera.lookAt(cameraLookAtRef.current);
-    }
-
-    // Rotate core assembly & gyroscopic calibration rings
-    if (rootGroupRef.current) {
-      const targetRotX =
-        waypoint.coreRotation[0] + (reducedMotion ? 0 : state.pointer.y * 0.18);
-      const targetRotY =
-        waypoint.coreRotation[1] +
-        scrollProgress * Math.PI * 1.4 +
-        (reducedMotion ? 0 : state.pointer.x * 0.25);
-      const targetRotZ = waypoint.coreRotation[2];
-
-      rootGroupRef.current.rotation.x = THREE.MathUtils.damp(
-        rootGroupRef.current.rotation.x,
-        targetRotX,
-        3.5,
-        delta
-      );
-      rootGroupRef.current.rotation.y = THREE.MathUtils.damp(
-        rootGroupRef.current.rotation.y,
-        targetRotY,
-        3.5,
-        delta
-      );
-      rootGroupRef.current.rotation.z = THREE.MathUtils.damp(
-        rootGroupRef.current.rotation.z,
-        targetRotZ,
-        3.5,
-        delta
-      );
-    }
+    groupRef.current.rotation.y = THREE.MathUtils.damp(
+      groupRef.current.rotation.y,
+      -0.32 + px,
+      3.5,
+      delta
+    );
+    groupRef.current.rotation.x = THREE.MathUtils.damp(
+      groupRef.current.rotation.x,
+      0.08 - py,
+      3.5,
+      delta
+    );
 
     if (!reducedMotion) {
-      const rate = simulationState === 'executing' ? 1.9 : simulationState === 'defect_trace' ? 1.4 : 1.0;
-      if (kernelMeshRef.current) {
-        kernelMeshRef.current.rotation.y += delta * 0.28 * rate;
-        kernelMeshRef.current.rotation.z += delta * 0.14 * rate;
+      const t = state.clock.elapsedTime;
+      if (monolithLeftRef.current) {
+        monolithLeftRef.current.position.y = Math.sin(t * 0.9) * 0.14 + 0.15;
+        monolithLeftRef.current.rotation.z = Math.sin(t * 0.5) * 0.04 + 0.12;
       }
-      if (cageMeshRef.current) {
-        cageMeshRef.current.rotation.y -= delta * 0.18 * rate;
-        cageMeshRef.current.rotation.x += delta * 0.12 * rate;
+      if (monolithCenterRef.current) {
+        monolithCenterRef.current.position.y = Math.cos(t * 0.8) * 0.12;
       }
-      if (ringExploreRef.current) {
-        ringExploreRef.current.rotation.z += delta * 0.35 * rate;
+      if (monolithRightRef.current) {
+        monolithRightRef.current.position.y = Math.sin(t * 0.85 + 1.5) * 0.15 - 0.15;
+        monolithRightRef.current.rotation.z = -0.14 + Math.cos(t * 0.45) * 0.04;
       }
-      if (ringAutomateRef.current) {
-        ringAutomateRef.current.rotation.x -= delta * 0.42 * rate;
-        ringAutomateRef.current.rotation.y += delta * 0.18 * rate;
-      }
-      if (ringAiRef.current) {
-        ringAiRef.current.rotation.y += delta * 0.5 * rate;
-        ringAiRef.current.rotation.z -= delta * 0.22 * rate;
-      }
-      if (platformGroupRef.current) {
-        platformGroupRef.current.rotation.y -= delta * 0.22;
+      if (sculptureKnotRef.current) {
+        sculptureKnotRef.current.rotation.y += delta * 0.28;
+        sculptureKnotRef.current.rotation.x += delta * 0.16;
       }
     }
   });
 
-  const waypoint = CAMERA_WAYPOINTS[activeSection] || CAMERA_WAYPOINTS.hero;
-  const activeColor =
-    simulationState === 'defect_trace'
-      ? '#F59E0B'
-      : simulationState === 'executing'
-        ? '#FF4D29'
-        : simulationState === 'ai_synthesis'
-          ? '#A78BFA'
-          : '#10B981';
-
   return (
-    <group ref={rootGroupRef} position={[1.15, 0, 0]}>
+    <group ref={groupRef} position={[1.75, 0.05, 0]}>
       <Float
-        speed={reducedMotion ? 0 : 1.6}
-        rotationIntensity={reducedMotion ? 0 : 0.18}
-        floatIntensity={reducedMotion ? 0 : 0.35}
+        speed={reducedMotion ? 0 : 1.4}
+        rotationIntensity={reducedMotion ? 0 : 0.12}
+        floatIntensity={reducedMotion ? 0 : 0.28}
       >
-        {/* 1. Inner Crystalline Verification Kernel (Custom GLSL Shader) */}
-        <mesh ref={kernelMeshRef}>
-          <icosahedronGeometry args={[1.08, 6]} />
+        {/* Left Brushed Champagne Titanium Monolith Slab */}
+        <RoundedBox
+          ref={monolithLeftRef}
+          args={[0.82, 3.1, 0.28]}
+          radius={0.06}
+          smoothness={4}
+          position={[-0.95, 0.15, -0.35]}
+          rotation={[0.08, 0.28, 0.12]}
+        >
+          <meshPhysicalMaterial
+            color="#1c1b22"
+            metalness={0.92}
+            roughness={0.18}
+            clearcoat={0.8}
+            clearcoatRoughness={0.15}
+          />
+        </RoundedBox>
+
+        {/* Center Refractive Crystal Prism */}
+        <RoundedBox
+          ref={monolithCenterRef}
+          args={[1.18, 3.45, 0.42]}
+          radius={0.08}
+          smoothness={4}
+          position={[0.05, 0, 0.15]}
+          rotation={[-0.04, -0.18, -0.05]}
+        >
+          <MeshTransmissionMaterial
+            backside
+            samples={4}
+            resolution={128}
+            transmission={0.94}
+            roughness={0.08}
+            thickness={1.4}
+            ior={1.45}
+            chromaticAberration={0.05}
+            anisotropy={0.2}
+            color="#F5F2EB"
+          />
+        </RoundedBox>
+
+        {/* Right Warm Cinnabar Sculptural Wing */}
+        <RoundedBox
+          ref={monolithRightRef}
+          args={[0.76, 2.85, 0.26]}
+          radius={0.06}
+          smoothness={4}
+          position={[1.05, -0.15, -0.25]}
+          rotation={[0.1, -0.35, -0.14]}
+        >
+          <meshPhysicalMaterial
+            color="#2a1615"
+            emissive="#E85D3F"
+            emissiveIntensity={0.22}
+            metalness={0.78}
+            roughness={0.22}
+            clearcoat={1}
+          />
+        </RoundedBox>
+
+        {/* Central Sculptural Liquid-Light Ribbon Core */}
+        <mesh ref={sculptureKnotRef} position={[0.05, 0.05, 0.2]}>
+          <torusKnotGeometry args={[0.62, 0.16, 128, 32, 2, 3]} />
           <shaderMaterial
-            ref={shaderMatRef}
-            vertexShader={VERTEX_SHADER}
-            fragmentShader={FRAGMENT_SHADER}
+            ref={shaderRef}
+            vertexShader={RIBBON_VERTEX_SHADER}
+            fragmentShader={RIBBON_FRAGMENT_SHADER}
             uniforms={uniforms}
             transparent
           />
         </mesh>
 
-        {/* 2. Outer Geodesic Wireframe Telemetry Cage */}
-        <mesh ref={cageMeshRef} scale={1.32}>
-          <icosahedronGeometry args={[1.05, 1]} />
+        {/* Subtle Architectural Halo Arch */}
+        <mesh rotation={[0.45, -0.25, 0]} position={[0, 0, -0.6]}>
+          <torusGeometry args={[2.15, 0.012, 16, 120]} />
           <meshStandardMaterial
-            color="#111318"
-            metalness={0.9}
-            roughness={0.15}
-            wireframe
-            transparent
-            opacity={0.42}
-          />
-          <Edges scale={1.01} threshold={12} color={activeColor} />
-        </mesh>
-
-        {/* 3. Gyroscopic Calibration Ring I — EXPLORE */}
-        <mesh
-          ref={ringExploreRef}
-          rotation={[Math.PI / 2.6, 0.2, 0]}
-          scale={waypoint.ringSpread}
-        >
-          <torusGeometry args={[1.78, 0.018, 16, 120]} />
-          <meshStandardMaterial
-            color="#F4F4F0"
-            emissive="#10B981"
-            emissiveIntensity={0.4}
-            metalness={0.92}
-            roughness={0.18}
-          />
-        </mesh>
-
-        {/* 4. Gyroscopic Calibration Ring II — AUTOMATE */}
-        <mesh
-          ref={ringAutomateRef}
-          rotation={[0.35, Math.PI / 3, Math.PI / 4]}
-          scale={waypoint.ringSpread * 1.08}
-        >
-          <torusGeometry args={[2.12, 0.022, 16, 120]} />
-          <meshStandardMaterial
-            color="#FF4D29"
-            emissive="#FF4D29"
-            emissiveIntensity={0.65}
-            metalness={0.88}
-            roughness={0.22}
-          />
-        </mesh>
-
-        {/* 5. Gyroscopic Calibration Ring III — AI-ASSISTED ENGINEERING */}
-        <mesh
-          ref={ringAiRef}
-          rotation={[-Math.PI / 3.2, -0.4, Math.PI / 2.2]}
-          scale={waypoint.ringSpread * 1.15}
-        >
-          <torusGeometry args={[2.46, 0.015, 16, 120]} />
-          <meshStandardMaterial
-            color="#9CA3AF"
-            emissive={activeColor}
-            emissiveIntensity={0.45}
+            color="#D6C7B2"
+            emissive="#D6C7B2"
+            emissiveIntensity={0.35}
             metalness={0.9}
             roughness={0.2}
           />
         </mesh>
-
-        {/* 6. Four Cross-Platform Verification Planes (Web, PWA, Android, iOS) */}
-        <group ref={platformGroupRef}>
-          {[0, 1, 2, 3].map((idx) => {
-            const angle = (idx * Math.PI) / 2 + Math.PI / 4;
-            const r = 1.92;
-            return (
-              <mesh
-                key={idx}
-                position={[Math.cos(angle) * r, Math.sin(idx * 1.5) * 0.25, Math.sin(angle) * r]}
-                rotation={[0, -angle, 0]}
-              >
-                <boxGeometry args={[0.32, 0.18, 0.03]} />
-                <meshStandardMaterial
-                  color="#171A21"
-                  emissive={idx % 2 === 0 ? '#10B981' : '#FF4D29'}
-                  emissiveIntensity={activeSection === 'about' ? 0.9 : 0.35}
-                  metalness={0.85}
-                  roughness={0.2}
-                />
-                <Edges color="#F4F4F0" />
-              </mesh>
-            );
-          })}
-        </group>
-
-        {/* 7. Six Interactive 3D Orbital Satellites (Capability Domains) */}
-        {CAPABILITY_DOMAINS.map((domain) => (
-          <OrbitalSatelliteNode
-            key={domain.id}
-            domain={domain}
-            isSelected={activeCapabilityId === domain.id}
-            onSelect={onSelectCapability}
-            ringSpread={waypoint.ringSpread}
-            reducedMotion={reducedMotion}
-            showLabel={inspectMode || activeSection === 'hero'}
-          />
-        ))}
       </Float>
     </group>
   );
 }
 
-function checkWebGLSupport(): boolean {
+/* ==========================================================================
+   CHAPTER 2 INSTALLATION (z = -16): THE MULTI-PLATFORM OPTICAL STRATA
+   ========================================================================== */
+function PhilosophyStrataInstallation({
+  activePlatformIndex,
+  reducedMotion,
+}: {
+  activePlatformIndex: number;
+  reducedMotion: boolean;
+}) {
+  const groupRef = useRef<THREE.Group>(null);
+  const slabRefs = useRef<(THREE.Mesh | null)[]>([]);
+  const lensRef = useRef<THREE.Mesh>(null);
+
+  useFrame((state, delta) => {
+    if (!groupRef.current) return;
+    const px = reducedMotion ? 0 : state.pointer.x * 0.2;
+    const py = reducedMotion ? 0 : state.pointer.y * 0.15;
+
+    groupRef.current.rotation.y = THREE.MathUtils.damp(
+      groupRef.current.rotation.y,
+      0.35 + px,
+      3.5,
+      delta
+    );
+    groupRef.current.rotation.x = THREE.MathUtils.damp(
+      groupRef.current.rotation.x,
+      0.1 - py,
+      3.5,
+      delta
+    );
+
+    slabRefs.current.forEach((mesh, idx) => {
+      if (!mesh) return;
+      const isSelected = idx === activePlatformIndex;
+      const baseY = (1.5 - idx) * 0.68;
+      const targetZ = isSelected ? 0.55 : 0;
+      const targetScale = isSelected ? 1.08 : 0.96;
+
+      mesh.position.y = THREE.MathUtils.damp(mesh.position.y, baseY, 4, delta);
+      mesh.position.z = THREE.MathUtils.damp(mesh.position.z, targetZ, 4, delta);
+      mesh.scale.setScalar(THREE.MathUtils.damp(mesh.scale.x, targetScale, 4, delta));
+    });
+
+    if (lensRef.current) {
+      const targetLensY = (1.5 - activePlatformIndex) * 0.68;
+      lensRef.current.position.y = THREE.MathUtils.damp(
+        lensRef.current.position.y,
+        targetLensY,
+        4.5,
+        delta
+      );
+      if (!reducedMotion) {
+        lensRef.current.rotation.z += delta * 0.4;
+      }
+    }
+  });
+
+  const slabColors = ['#6EE7B7', '#38BDF8', '#E85D3F', '#D6C7B2'];
+
+  return (
+    <group ref={groupRef} position={[1.9, 0.0, -16]}>
+      {/* Four Architectural Platform Strata (Web, PWA, Android, iOS) */}
+      {[0, 1, 2, 3].map((idx) => {
+        const isSelected = idx === activePlatformIndex;
+        return (
+          <RoundedBox
+            key={idx}
+            ref={(el) => {
+              slabRefs.current[idx] = el;
+            }}
+            args={[2.3, 0.36, 1.35]}
+            radius={0.05}
+            smoothness={4}
+            position={[0, (1.5 - idx) * 0.68, 0]}
+            rotation={[0.12, -0.35, 0]}
+          >
+            <meshPhysicalMaterial
+              color={isSelected ? '#1c242b' : '#12141a'}
+              emissive={slabColors[idx]}
+              emissiveIntensity={isSelected ? 0.42 : 0.08}
+              metalness={0.75}
+              roughness={0.18}
+              transmission={0.45}
+              transparent
+              opacity={isSelected ? 0.96 : 0.72}
+              clearcoat={1}
+            />
+          </RoundedBox>
+        );
+      })}
+
+      {/* Optical Exploration Lens Ring */}
+      <mesh ref={lensRef} position={[0.25, 0, 0.75]} rotation={[0.15, -0.2, 0]}>
+        <torusGeometry args={[0.92, 0.028, 24, 96]} />
+        <meshStandardMaterial
+          color="#F5F2EB"
+          emissive="#6EE7B7"
+          emissiveIntensity={0.65}
+          metalness={0.9}
+          roughness={0.1}
+        />
+      </mesh>
+    </group>
+  );
+}
+
+/* ==========================================================================
+   CHAPTER 3 INSTALLATION (z = -32): SIX INTERACTIVE 3D CAPABILITY DIORAMAS
+   ========================================================================== */
+function CapabilitiesDioramaStage({
+  activeCapabilityId,
+  activeLensIndex,
+  reducedMotion,
+}: {
+  activeCapabilityId: CapabilityId;
+  activeLensIndex: number;
+  reducedMotion: boolean;
+}) {
+  const stageRef = useRef<THREE.Group>(null);
+  const pulseRef = useRef<THREE.Mesh>(null);
+
+  useFrame((state, delta) => {
+    if (!stageRef.current) return;
+    const px = reducedMotion ? 0 : state.pointer.x * 0.25;
+    const py = reducedMotion ? 0 : state.pointer.y * 0.18;
+
+    stageRef.current.rotation.y = THREE.MathUtils.damp(
+      stageRef.current.rotation.y,
+      -0.28 + px + (activeLensIndex - 1) * 0.22,
+      3.5,
+      delta
+    );
+    stageRef.current.rotation.x = THREE.MathUtils.damp(
+      stageRef.current.rotation.x,
+      0.12 - py,
+      3.5,
+      delta
+    );
+
+    if (pulseRef.current && !reducedMotion) {
+      const t = (state.clock.elapsedTime * 0.85) % 1;
+      pulseRef.current.position.x = -1.55 + t * 3.1;
+      pulseRef.current.position.y = Math.sin(t * Math.PI) * 0.45;
+    }
+  });
+
+  return (
+    <group ref={stageRef} position={[1.95, -0.05, -32]}>
+      <Float
+        speed={reducedMotion ? 0 : 1.3}
+        rotationIntensity={reducedMotion ? 0 : 0.1}
+        floatIntensity={reducedMotion ? 0 : 0.22}
+      >
+        {/* 1. QUALITY ENGINEERING: Multi-Angle Behavioural Prism */}
+        {activeCapabilityId === 'quality-engineering' && (
+          <group>
+            <mesh rotation={[0.3, 0.5, 0]} scale={1.15 + activeLensIndex * 0.08}>
+              <octahedronGeometry args={[1.25, 0]} />
+              <MeshTransmissionMaterial
+                samples={4}
+                resolution={128}
+                transmission={0.92}
+                roughness={0.1}
+                thickness={1.5}
+                chromaticAberration={0.08}
+                color="#6EE7B7"
+              />
+            </mesh>
+            {[0, 1, 2, 3].map((beamIdx) => {
+              const angle = (beamIdx * Math.PI) / 2 + activeLensIndex * 0.4;
+              return (
+                <Line
+                  key={beamIdx}
+                  points={[
+                    [0, 0, 0],
+                    [Math.cos(angle) * 2.2, Math.sin(angle) * 1.6, 0.4],
+                  ]}
+                  color={beamIdx === activeLensIndex ? '#E85D3F' : '#6EE7B7'}
+                  lineWidth={2.2}
+                />
+              );
+            })}
+          </group>
+        )}
+
+        {/* 2. TEST AUTOMATION: 3D Deconstructed Browser & Page Object Layers */}
+        {activeCapabilityId === 'test-automation' && (
+          <group rotation={[0.06, -0.2, 0]}>
+            {/* Outer Browser Frame */}
+            <RoundedBox args={[2.7, 1.75, 0.1]} radius={0.06} position={[0, 0, -0.45]}>
+              <meshPhysicalMaterial
+                color="#14161d"
+                metalness={0.85}
+                roughness={0.2}
+                clearcoat={1}
+              />
+            </RoundedBox>
+            {/* Exploded Page Object Layer */}
+            <RoundedBox
+              args={[2.2, 1.25, 0.08]}
+              radius={0.05}
+              position={[0, 0, 0.05 + activeLensIndex * 0.18]}
+            >
+              <meshPhysicalMaterial
+                color="#261818"
+                emissive="#E85D3F"
+                emissiveIntensity={0.32}
+                metalness={0.7}
+                roughness={0.2}
+                transparent
+                opacity={0.9}
+              />
+            </RoundedBox>
+            {/* Floating Interactive DOM / Assertion Cards */}
+            {[-0.65, 0, 0.65].map((xPos, i) => (
+              <RoundedBox
+                key={i}
+                args={[0.56, 0.72, 0.08]}
+                radius={0.04}
+                position={[
+                  xPos,
+                  i === activeLensIndex ? 0.12 : -0.04,
+                  0.52 + (i === activeLensIndex ? 0.25 : 0),
+                ]}
+              >
+                <meshStandardMaterial
+                  color={i === activeLensIndex ? '#E85D3F' : '#D6C7B2'}
+                  emissive={i === activeLensIndex ? '#E85D3F' : '#1a1a1a'}
+                  emissiveIntensity={i === activeLensIndex ? 0.55 : 0.1}
+                  metalness={0.85}
+                  roughness={0.18}
+                />
+              </RoundedBox>
+            ))}
+          </group>
+        )}
+
+        {/* 3. API & DATA VALIDATION: 3D Request–Response & SQL Conduit */}
+        {activeCapabilityId === 'api-data-validation' && (
+          <group>
+            {/* Client Node */}
+            <RoundedBox args={[0.68, 1.35, 0.68]} radius={0.08} position={[-1.55, 0, 0]}>
+              <meshPhysicalMaterial color="#1d222b" metalness={0.85} roughness={0.2} clearcoat={1} />
+            </RoundedBox>
+            {/* REST Gateway Ring */}
+            <mesh position={[0, 0, 0]} rotation={[0, Math.PI / 4, 0]}>
+              <torusGeometry args={[0.68, 0.06, 24, 64]} />
+              <meshStandardMaterial
+                color="#F59E0B"
+                emissive="#F59E0B"
+                emissiveIntensity={0.5}
+                metalness={0.9}
+                roughness={0.15}
+              />
+            </mesh>
+            {/* Relational SQL Crystal Pillar */}
+            <mesh position={[1.55, 0, 0]}>
+              <cylinderGeometry args={[0.52, 0.52, 1.55, 6]} />
+              <meshPhysicalMaterial
+                color="#162925"
+                emissive="#6EE7B7"
+                emissiveIntensity={0.35}
+                metalness={0.8}
+                roughness={0.15}
+                clearcoat={1}
+              />
+            </mesh>
+            {/* Request & Response Curved Conduits */}
+            <QuadraticBezierLine
+              start={[-1.55, 0.2, 0]}
+              mid={[0, 0.85, 0.3]}
+              end={[1.55, 0.2, 0]}
+              color="#F59E0B"
+              lineWidth={2.4}
+            />
+            <QuadraticBezierLine
+              start={[1.55, -0.2, 0]}
+              mid={[0, -0.85, -0.3]}
+              end={[-1.55, -0.2, 0]}
+              color="#6EE7B7"
+              lineWidth={2.4}
+            />
+            {/* Traveling Payload Pulse */}
+            <mesh ref={pulseRef} position={[0, 0.4, 0]}>
+              <sphereGeometry args={[0.14, 24, 24]} />
+              <meshStandardMaterial
+                color="#F5F2EB"
+                emissive="#F59E0B"
+                emissiveIntensity={1.2}
+              />
+            </mesh>
+          </group>
+        )}
+
+        {/* 4. SOFTWARE DEVELOPMENT: Interlocking Full-Stack Architectural Strata */}
+        {activeCapabilityId === 'software-development' && (
+          <group rotation={[0.18, -0.35, 0]}>
+            {[0, 1, 2].map((layerIdx) => {
+              const isFocused = layerIdx === activeLensIndex;
+              return (
+                <RoundedBox
+                  key={layerIdx}
+                  args={[2.1 - layerIdx * 0.2, 0.34, 1.45 - layerIdx * 0.12]}
+                  radius={0.06}
+                  position={[
+                    0,
+                    (layerIdx - 1) * (0.65 + activeLensIndex * 0.08),
+                    isFocused ? 0.3 : 0,
+                  ]}
+                >
+                  <meshPhysicalMaterial
+                    color={isFocused ? '#1c2d38' : '#151821'}
+                    emissive={isFocused ? '#38BDF8' : '#D6C7B2'}
+                    emissiveIntensity={isFocused ? 0.45 : 0.1}
+                    metalness={0.85}
+                    roughness={0.18}
+                    clearcoat={1}
+                  />
+                </RoundedBox>
+              );
+            })}
+          </group>
+        )}
+
+        {/* 5. AI-ASSISTED DEVELOPMENT: Human & AI Agent Symbiosis Sculpture */}
+        {activeCapabilityId === 'ai-assisted-development' && (
+          <group>
+            {/* Human Judgment Golden Ring */}
+            <mesh rotation={[0.4, 0.3, 0]}>
+              <torusGeometry args={[1.35, 0.08, 32, 100]} />
+              <meshPhysicalMaterial
+                color="#D6C7B2"
+                emissive="#D6C7B2"
+                emissiveIntensity={0.25}
+                metalness={0.95}
+                roughness={0.12}
+                clearcoat={1}
+              />
+            </mesh>
+            {/* AI Synthesis Sculptural Knot */}
+            <mesh scale={0.95 + activeLensIndex * 0.08}>
+              <torusKnotGeometry args={[0.68, 0.18, 128, 32, 3, 4]} />
+              <MeshTransmissionMaterial
+                samples={4}
+                resolution={128}
+                transmission={0.9}
+                roughness={0.12}
+                thickness={1.2}
+                chromaticAberration={0.07}
+                color="#C084FC"
+              />
+            </mesh>
+          </group>
+        )}
+
+        {/* 6. QA PROCESSES: Quality Lifecycle Continuum */}
+        {activeCapabilityId === 'qa-processes' && (
+          <group rotation={[0.25, -0.2, 0]}>
+            <mesh>
+              <torusGeometry args={[1.45, 0.045, 24, 120]} />
+              <meshStandardMaterial
+                color="#D6C7B2"
+                emissive="#D6C7B2"
+                emissiveIntensity={0.3}
+                metalness={0.9}
+                roughness={0.2}
+              />
+            </mesh>
+            {[0, 1, 2, 3, 4, 5].map((stepIdx) => {
+              const angle = (stepIdx * Math.PI) / 3;
+              const highlight = stepIdx % 3 === activeLensIndex;
+              return (
+                <mesh
+                  key={stepIdx}
+                  position={[Math.cos(angle) * 1.45, Math.sin(angle) * 1.45, 0]}
+                  scale={highlight ? 1.35 : 1.0}
+                >
+                  <octahedronGeometry args={[0.18, 0]} />
+                  <meshStandardMaterial
+                    color={highlight ? '#6EE7B7' : '#F5F2EB'}
+                    emissive={highlight ? '#6EE7B7' : '#D6C7B2'}
+                    emissiveIntensity={highlight ? 0.8 : 0.2}
+                    metalness={0.85}
+                    roughness={0.2}
+                  />
+                </mesh>
+              );
+            })}
+          </group>
+        )}
+      </Float>
+    </group>
+  );
+}
+
+/* ==========================================================================
+   CHAPTER 4 INSTALLATION (z = -48): THE CHRONOS ARCH & ACADEMIC MONOLITH
+   ========================================================================== */
+function JourneyChronosInstallation({ reducedMotion }: { reducedMotion: boolean }) {
+  const groupRef = useRef<THREE.Group>(null);
+
+  useFrame((state, delta) => {
+    if (!groupRef.current) return;
+    const px = reducedMotion ? 0 : state.pointer.x * 0.18;
+    groupRef.current.rotation.y = THREE.MathUtils.damp(
+      groupRef.current.rotation.y,
+      0.24 + px,
+      3.5,
+      delta
+    );
+  });
+
+  return (
+    <group ref={groupRef} position={[1.85, 0.0, -48]}>
+      {/* Rising Architectural Arches */}
+      {[0, 1, 2].map((i) => (
+        <mesh
+          key={i}
+          position={[0, -0.2 + i * 0.15, -i * 0.85]}
+          rotation={[0, -0.25, 0]}
+        >
+          <torusGeometry args={[1.65 - i * 0.22, 0.035, 24, 96, Math.PI * 1.35]} />
+          <meshPhysicalMaterial
+            color="#D6C7B2"
+            emissive="#D6C7B2"
+            emissiveIntensity={0.22}
+            metalness={0.92}
+            roughness={0.18}
+            clearcoat={1}
+          />
+        </mesh>
+      ))}
+
+      {/* Central Faceted Academic & Career Monolith */}
+      <Float
+        speed={reducedMotion ? 0 : 1.2}
+        rotationIntensity={reducedMotion ? 0 : 0.15}
+        floatIntensity={reducedMotion ? 0 : 0.25}
+      >
+        <mesh position={[0, 0.1, -0.4]} rotation={[0.2, 0.6, 0]}>
+          <dodecahedronGeometry args={[0.88, 0]} />
+          <MeshTransmissionMaterial
+            samples={4}
+            resolution={128}
+            transmission={0.92}
+            roughness={0.12}
+            thickness={1.4}
+            color="#F5F2EB"
+          />
+        </mesh>
+      </Float>
+    </group>
+  );
+}
+
+/* ==========================================================================
+   CHAPTER 5 INSTALLATION (z = -64): THE HORIZON BEACON (CONTACT)
+   ========================================================================== */
+function ContactHorizonBeacon({ reducedMotion }: { reducedMotion: boolean }) {
+  const ringRef = useRef<THREE.Mesh>(null);
+  const innerRef = useRef<THREE.Mesh>(null);
+
+  useFrame((_, delta) => {
+    if (reducedMotion) return;
+    if (ringRef.current) {
+      ringRef.current.rotation.z += delta * 0.18;
+    }
+    if (innerRef.current) {
+      innerRef.current.rotation.y += delta * 0.32;
+      innerRef.current.rotation.x += delta * 0.2;
+    }
+  });
+
+  return (
+    <group position={[0, 0.15, -64]}>
+      <mesh ref={ringRef} rotation={[0.15, 0, 0]}>
+        <torusGeometry args={[2.1, 0.04, 32, 128]} />
+        <meshStandardMaterial
+          color="#F5F2EB"
+          emissive="#E85D3F"
+          emissiveIntensity={0.55}
+          metalness={0.9}
+          roughness={0.15}
+        />
+      </mesh>
+      <mesh ref={innerRef}>
+        <icosahedronGeometry args={[0.72, 0]} />
+        <meshPhysicalMaterial
+          color="#172326"
+          emissive="#6EE7B7"
+          emissiveIntensity={0.35}
+          metalness={0.88}
+          roughness={0.15}
+          clearcoat={1}
+        />
+      </mesh>
+    </group>
+  );
+}
+
+/* ==========================================================================
+   MASTER CAMERA DIRECTOR (SMOOTH SCROLL CHOREOGRAPHY ACROSS ALL 5 CHAPTERS)
+   ========================================================================== */
+function MasterCameraDirector({
+  scrollProgress,
+  reducedMotion,
+}: {
+  scrollProgress: number;
+  reducedMotion: boolean;
+}) {
+  const lookAtTarget = useRef(new THREE.Vector3(1.15, 0.05, 0));
+
+  const waypoints = useMemo(
+    () => CHAPTERS.map((ch) => CHAPTER_WAYPOINTS[ch.id]),
+    []
+  );
+
+  useFrame((state, delta) => {
+    const totalSegments = waypoints.length - 1;
+    const scaled = Math.min(totalSegments, Math.max(0, scrollProgress * totalSegments));
+    const idx = Math.min(totalSegments - 1, Math.floor(scaled));
+    const frac = scaled - idx;
+
+    // Smoothstep interpolation between adjacent chapters
+    const smoothFrac = frac * frac * (3 - 2 * frac);
+
+    const wpA = waypoints[idx];
+    const wpB = waypoints[idx + 1];
+
+    const isMobileViewport = state.size.width < 880;
+    const mobileXOffset = isMobileViewport ? -0.95 : 0;
+    const mobileZOffset = isMobileViewport ? 1.45 : 0;
+
+    const targetCamX =
+      THREE.MathUtils.lerp(wpA.cameraPosition[0], wpB.cameraPosition[0], smoothFrac) +
+      mobileXOffset +
+      (reducedMotion ? 0 : state.pointer.x * 0.22);
+    const targetCamY =
+      THREE.MathUtils.lerp(wpA.cameraPosition[1], wpB.cameraPosition[1], smoothFrac) +
+      (reducedMotion ? 0 : state.pointer.y * 0.16);
+    const targetCamZ =
+      THREE.MathUtils.lerp(wpA.cameraPosition[2], wpB.cameraPosition[2], smoothFrac) +
+      mobileZOffset;
+
+    state.camera.position.x = THREE.MathUtils.damp(
+      state.camera.position.x,
+      targetCamX,
+      3.6,
+      delta
+    );
+    state.camera.position.y = THREE.MathUtils.damp(
+      state.camera.position.y,
+      targetCamY,
+      3.6,
+      delta
+    );
+    state.camera.position.z = THREE.MathUtils.damp(
+      state.camera.position.z,
+      targetCamZ,
+      3.6,
+      delta
+    );
+
+    const lookX =
+      THREE.MathUtils.lerp(wpA.cameraTarget[0], wpB.cameraTarget[0], smoothFrac) +
+      (isMobileViewport ? -0.55 : 0);
+    const lookY = THREE.MathUtils.lerp(wpA.cameraTarget[1], wpB.cameraTarget[1], smoothFrac);
+    const lookZ = THREE.MathUtils.lerp(wpA.cameraTarget[2], wpB.cameraTarget[2], smoothFrac);
+
+    lookAtTarget.current.x = THREE.MathUtils.damp(lookAtTarget.current.x, lookX, 4.2, delta);
+    lookAtTarget.current.y = THREE.MathUtils.damp(lookAtTarget.current.y, lookY, 4.2, delta);
+    lookAtTarget.current.z = THREE.MathUtils.damp(lookAtTarget.current.z, lookZ, 4.2, delta);
+
+    state.camera.lookAt(lookAtTarget.current);
+  });
+
+  return null;
+}
+
+function checkWebGL(): boolean {
   if (typeof window === 'undefined') return true;
   try {
     const canvas = document.createElement('canvas');
@@ -626,66 +844,72 @@ function checkWebGLSupport(): boolean {
   }
 }
 
-export const VerificationCoreScene: React.FC<VerificationCoreSceneProps> = (props) => {
-  const [webglSupported, setWebglSupported] = useState(true);
+export const VerificationCoreScene: React.FC<SculpturalWorldProps> = (props) => {
+  const [webglAvailable, setWebglAvailable] = useState(true);
 
   useEffect(() => {
-    setWebglSupported(checkWebGLSupport());
+    setWebglAvailable(checkWebGL());
   }, []);
 
-  if (!webglSupported) {
+  if (!webglAvailable) {
     return (
-      <div className="webgl-fallback" role="img" aria-label="Verification Core Interactive Schematic">
-        <div className="webgl-fallback__grid" />
-        <div className="webgl-fallback__core">
-          <div className="webgl-fallback__ring webgl-fallback__ring--outer" />
-          <div className="webgl-fallback__ring webgl-fallback__ring--mid" />
-          <div className="webgl-fallback__ring webgl-fallback__ring--inner" />
-          <div className="webgl-fallback__badge">
-            VERIFICATION CORE // SCHEMATIC MODE
-          </div>
-        </div>
+      <div className="sculptural-fallback" aria-hidden="true">
+        <div className="sculptural-fallback__orb sculptural-fallback__orb--primary" />
+        <div className="sculptural-fallback__orb sculptural-fallback__orb--secondary" />
       </div>
     );
   }
 
   return (
-    <div className={`canvas-stage ${props.inspectMode ? 'canvas-stage--inspect' : ''}`}>
+    <div className="sculptural-canvas-wrap" aria-hidden="true">
       <Canvas
         dpr={[1, 1.75]}
-        camera={{ position: [2.35, 0.45, 6.2], fov: 44, near: 0.1, far: 100 }}
-        gl={{
-          antialias: true,
-          alpha: true,
-          powerPreference: 'high-performance',
-        }}
+        camera={{ position: [0.65, 0.25, 6.2], fov: 42, near: 0.1, far: 120 }}
+        gl={{ antialias: true, alpha: false, powerPreference: 'high-performance' }}
       >
-        <color attach="background" args={['#090A0D']} />
-        <fog attach="fog" args={['#090A0D', 6.5, 19.5]} />
+        <color attach="background" args={['#07070A']} />
+        <fog attach="fog" args={['#07070A', 5.5, 16.5]} />
 
-        <ambientLight intensity={0.65} />
-        <directionalLight position={[6, 8, 5]} intensity={1.8} color="#F4F4F0" />
-        <pointLight position={[-5, -3, -4]} intensity={1.4} color="#FF4D29" />
-        <pointLight position={[3, 4, 2]} intensity={1.2} color="#10B981" />
+        <ambientLight intensity={0.5} />
+        <directionalLight position={[6, 10, 6]} intensity={1.6} color="#F5F2EB" />
+        <pointLight position={[-5, 2, 3]} intensity={1.8} color="#E85D3F" />
 
-        <VerificationCoreAssembly {...props} />
-        <TelemetryParticleField
+        <StudioLightingRig />
+
+        <MasterCameraDirector
+          scrollProgress={props.scrollProgress}
           reducedMotion={props.reducedMotion}
-          simulationState={props.simulationState}
         />
-        <ArchitecturalReferenceGrid />
 
-        {props.inspectMode && (
-          <OrbitControls
-            enablePan={false}
-            minDistance={3.2}
-            maxDistance={10.5}
-            dampingFactor={0.06}
-            enableDamping
-          />
-        )}
+        {/* Atmospheric Studio Dust Motes Along the Entire 5-Chapter Gallery */}
+        <Sparkles
+          count={220}
+          scale={[12, 6, 76]}
+          position={[0, 0, -32]}
+          size={1.6}
+          speed={props.reducedMotion ? 0 : 0.25}
+          opacity={0.35}
+          color="#D6C7B2"
+        />
+
+        {/* 5 Distinct Sculptural Installations in 3D World Space */}
+        <HeroPrismMonolith reducedMotion={props.reducedMotion} />
+
+        <PhilosophyStrataInstallation
+          activePlatformIndex={props.activePlatformIndex}
+          reducedMotion={props.reducedMotion}
+        />
+
+        <CapabilitiesDioramaStage
+          activeCapabilityId={props.activeCapabilityId}
+          activeLensIndex={props.activeLensIndex}
+          reducedMotion={props.reducedMotion}
+        />
+
+        <JourneyChronosInstallation reducedMotion={props.reducedMotion} />
+
+        <ContactHorizonBeacon reducedMotion={props.reducedMotion} />
       </Canvas>
     </div>
   );
 };
-

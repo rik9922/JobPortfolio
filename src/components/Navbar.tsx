@@ -1,175 +1,120 @@
 import React, { useState } from 'react';
-import {
-  Compass,
-  Download,
-  Eye,
-  Menu,
-  ShieldCheck,
-  X,
-} from 'lucide-react';
-import { NAV_SECTIONS, PERSONAL_BRAND } from '../data/portfolioData';
-import { CoreSimulationState, SectionId } from '../types/portfolio';
+import { ArrowUpRight, Download, Menu, X } from 'lucide-react';
+import { CHAPTERS, PERSONAL_IDENTITY } from '../data/portfolioData';
+import { ChapterId } from '../types/portfolio';
 
 interface NavbarProps {
-  activeSection: SectionId;
-  onNavigate: (id: SectionId) => void;
-  inspectMode: boolean;
-  onToggleInspect: () => void;
-  reducedMotion: boolean;
-  onToggleReducedMotion: () => void;
-  simulationState: CoreSimulationState;
+  activeChapter: ChapterId;
+  onNavigate: (id: ChapterId) => void;
 }
 
-const STATE_LABELS: Record<CoreSimulationState, { label: string; dotClass: string }> = {
-  nominal: { label: 'CORE: NOMINAL', dotClass: 'status-dot--emerald' },
-  executing: { label: 'CORE: EXECUTING', dotClass: 'status-dot--vermilion' },
-  defect_trace: { label: 'CORE: DEFECT TRACE', dotClass: 'status-dot--amber' },
-  ai_synthesis: { label: 'CORE: AI SYNTHESIS', dotClass: 'status-dot--violet' },
-};
+export const Navbar: React.FC<NavbarProps> = ({ activeChapter, onNavigate }) => {
+  const [menuOpen, setMenuOpen] = useState(false);
 
-export const Navbar: React.FC<NavbarProps> = ({
-  activeSection,
-  onNavigate,
-  inspectMode,
-  onToggleInspect,
-  reducedMotion,
-  onToggleReducedMotion,
-  simulationState,
-}) => {
-  const [mobileOpen, setMobileOpen] = useState(false);
-  const currentState = STATE_LABELS[simulationState];
-
-  const handleNavClick = (id: SectionId) => {
+  const handleSelect = (id: ChapterId) => {
     onNavigate(id);
-    setMobileOpen(false);
+    setMenuOpen(false);
   };
 
   return (
-    <header className="hud-header" role="banner">
-      <div className="hud-header__bar">
+    <header className="minimal-header" role="banner">
+      <div className="minimal-header__inner">
         <button
           type="button"
-          className="hud-brand"
-          onClick={() => handleNavClick('hero')}
-          aria-label="Return to Ritik Thakre Hero Section"
+          className="minimal-brand"
+          onClick={() => handleSelect('introduction')}
+          aria-label="Scroll to Introduction"
         >
-          <span className="hud-brand__monogram" aria-hidden="true">
-            <ShieldCheck size={16} />
-          </span>
-          <span className="hud-brand__text">
-            <span className="hud-brand__name">{PERSONAL_BRAND.name}</span>
-            <span className="hud-brand__role">QA • AUTOMATION • AI DEV</span>
-          </span>
+          <span className="minimal-brand__mark" aria-hidden="true" />
+          <span className="minimal-brand__name">{PERSONAL_IDENTITY.name}</span>
         </button>
 
-        <nav className="hud-nav" aria-label="Primary Portfolio Navigation">
-          {NAV_SECTIONS.map((sec) => {
-            const isActive = activeSection === sec.id;
+        <nav className="minimal-nav" aria-label="Chapter Navigation">
+          {CHAPTERS.map((chapter) => {
+            const isActive = activeChapter === chapter.id;
             return (
               <button
-                key={sec.id}
+                key={chapter.id}
                 type="button"
-                onClick={() => handleNavClick(sec.id)}
-                className={`hud-nav__item ${isActive ? 'hud-nav__item--active' : ''}`}
+                onClick={() => handleSelect(chapter.id)}
+                className={`minimal-nav__link ${
+                  isActive ? 'minimal-nav__link--active' : ''
+                }`}
                 aria-current={isActive ? 'location' : undefined}
               >
-                <span className="hud-nav__idx">{sec.index}</span>
-                <span className="hud-nav__label">{sec.shortLabel}</span>
+                <span className="minimal-nav__num">{chapter.number}</span>
+                <span>{chapter.label}</span>
               </button>
             );
           })}
         </nav>
 
-        <div className="hud-controls">
-          <div className="hud-status-pill" aria-live="polite">
-            <span className={`status-dot ${currentState.dotClass}`} />
-            <span className="hud-status-pill__text">{currentState.label}</span>
-          </div>
-
-          <button
-            type="button"
-            onClick={onToggleInspect}
-            className={`hud-control-btn ${inspectMode ? 'hud-control-btn--active' : ''}`}
-            aria-pressed={inspectMode}
-            title="Toggle interactive 3D camera orbit control"
+        <div className="minimal-header__actions">
+          <a
+            href={PERSONAL_IDENTITY.linkedin}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="minimal-action-link"
           >
-            <Compass size={15} />
-            <span>{inspectMode ? 'EXIT 3D ORBIT' : '3D ORBIT'}</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={onToggleReducedMotion}
-            className={`hud-control-btn ${reducedMotion ? 'hud-control-btn--active' : ''}`}
-            aria-pressed={reducedMotion}
-            title="Toggle reduced motion accessibility mode"
-          >
-            <Eye size={15} />
-            <span className="hud-control-btn__hide-tablet">
-              {reducedMotion ? 'STATIC HUD' : 'MOTION ON'}
-            </span>
-          </button>
+            <span>LinkedIn</span>
+            <ArrowUpRight size={14} />
+          </a>
 
           <a
-            href={PERSONAL_BRAND.resumeUrl}
-            download="Ritik_Thakre_QA_Automation_Resume.pdf"
-            className="hud-resume-btn"
+            href={PERSONAL_IDENTITY.resumeHref}
+            download="Ritik_Thakre_Resume.pdf"
+            className="minimal-resume-pill"
           >
             <Download size={14} />
-            <span>RESUME</span>
+            <span>Resume</span>
           </a>
 
           <button
             type="button"
-            className="hud-mobile-toggle"
-            onClick={() => setMobileOpen((prev) => !prev)}
-            aria-expanded={mobileOpen}
-            aria-label={mobileOpen ? 'Close navigation menu' : 'Open navigation menu'}
+            className="minimal-menu-toggle"
+            onClick={() => setMenuOpen((prev) => !prev)}
+            aria-expanded={menuOpen}
+            aria-label={menuOpen ? 'Close navigation menu' : 'Open navigation menu'}
           >
-            {mobileOpen ? <X size={20} /> : <Menu size={20} />}
+            {menuOpen ? <X size={20} /> : <Menu size={20} />}
           </button>
         </div>
       </div>
 
-      {mobileOpen && (
-        <div className="hud-mobile-drawer" role="dialog" aria-label="Mobile Navigation Menu">
-          <div className="hud-mobile-drawer__grid">
-            {NAV_SECTIONS.map((sec) => {
-              const isActive = activeSection === sec.id;
-              return (
-                <button
-                  key={sec.id}
-                  type="button"
-                  onClick={() => handleNavClick(sec.id)}
-                  className={`hud-mobile-drawer__link ${
-                    isActive ? 'hud-mobile-drawer__link--active' : ''
-                  }`}
-                >
-                  <span className="hud-mobile-drawer__idx">{sec.index}</span>
-                  <span className="hud-mobile-drawer__label">{sec.label}</span>
-                </button>
-              );
-            })}
+      {menuOpen && (
+        <div className="minimal-mobile-sheet" role="dialog" aria-label="Navigation">
+          <div className="minimal-mobile-sheet__list">
+            {CHAPTERS.map((chapter) => (
+              <button
+                key={chapter.id}
+                type="button"
+                onClick={() => handleSelect(chapter.id)}
+                className={`minimal-mobile-sheet__item ${
+                  activeChapter === chapter.id ? 'minimal-mobile-sheet__item--active' : ''
+                }`}
+              >
+                <span className="minimal-mobile-sheet__num">{chapter.number}</span>
+                <span>{chapter.label}</span>
+              </button>
+            ))}
           </div>
-          <div className="hud-mobile-drawer__footer">
-            <button
-              type="button"
-              onClick={() => {
-                onToggleInspect();
-                setMobileOpen(false);
-              }}
-              className={`hud-control-btn ${inspectMode ? 'hud-control-btn--active' : ''}`}
-            >
-              <Compass size={15} />
-              <span>{inspectMode ? 'DISABLE 3D ORBIT' : 'INTERACT WITH 3D CORE'}</span>
-            </button>
+          <div className="minimal-mobile-sheet__footer">
             <a
-              href={PERSONAL_BRAND.resumeUrl}
-              download="Ritik_Thakre_QA_Automation_Resume.pdf"
-              className="hud-resume-btn"
+              href={PERSONAL_IDENTITY.resumeHref}
+              download="Ritik_Thakre_Resume.pdf"
+              className="minimal-resume-pill"
             >
-              <Download size={15} />
-              <span>DOWNLOAD RESUME PDF</span>
+              <Download size={14} />
+              <span>Download Resume</span>
+            </a>
+            <a
+              href={PERSONAL_IDENTITY.linkedin}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="minimal-action-link"
+            >
+              <span>LinkedIn Profile</span>
+              <ArrowUpRight size={14} />
             </a>
           </div>
         </div>
@@ -177,4 +122,3 @@ export const Navbar: React.FC<NavbarProps> = ({
     </header>
   );
 };
-

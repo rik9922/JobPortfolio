@@ -1,112 +1,63 @@
-export type SectionId =
-  | 'hero'
-  | 'about'
+export type ChapterId =
+  | 'introduction'
+  | 'philosophy'
   | 'capabilities'
-  | 'automation-lab'
-  | 'ai-engineering'
-  | 'experience'
-  | 'education'
+  | 'journey'
   | 'contact';
 
-export type CoreSimulationState = 'nominal' | 'executing' | 'defect_trace' | 'ai_synthesis';
+export type CapabilityId =
+  | 'quality-engineering'
+  | 'test-automation'
+  | 'api-data-validation'
+  | 'software-development'
+  | 'ai-assisted-development'
+  | 'qa-processes';
 
-export interface CameraWaypoint {
-  position: [number, number, number];
-  target: [number, number, number];
-  coreRotation: [number, number, number];
-  ringSpread: number;
-  accentIntensity: number;
+export interface ChapterWaypoint {
+  cameraPosition: [number, number, number];
+  cameraTarget: [number, number, number];
+  ambientColor: string;
+  keyLightColor: string;
 }
 
-export interface SkillItem {
-  name: string;
-  role: string;
-  architectureNote: string;
-  docUrl?: string;
-  docLabel?: string;
-}
-
-export interface CapabilityDomain {
+export interface InteractiveVisualLens {
   id: string;
-  index: string;
+  label: string;
+  caption: string;
+  visualFocus: number;
+}
+
+export interface CapabilityChapterItem {
+  id: CapabilityId;
+  number: string;
   title: string;
-  shortTitle: string;
   subtitle: string;
-  color: string;
-  orbitAngle: number;
-  orbitRadius: number;
-  orbitHeight: number;
+  accentColor: string;
+  secondaryColor: string;
+  storyHeadline: string;
   description: string;
-  architecturalSummary: string;
-  skills: SkillItem[];
+  visualMetaphorLabel: string;
+  skills: string[];
+  interactiveLenses: InteractiveVisualLens[];
 }
 
-export interface AutomationStage {
-  step: string;
-  title: string;
-  protocol: string;
-  verificationGate: string;
-  nominalDetail: string;
-  defectDetail: string;
-  assertionCheck: string;
-}
-
-export interface AutomationWorkflow {
+export interface PlatformStratum {
   id: string;
   title: string;
-  badge: string;
-  stack: string[];
-  summary: string;
-  officialDocUrl: string;
-  officialDocLabel: string;
-  stages: AutomationStage[];
-  codeSnippet: string;
-  codeLanguage: string;
-  telemetryPayload: string;
-  defectScenario: {
-    symptom: string;
-    rootCause: string;
-    resolution: string;
-  };
-}
-
-export interface AiAgentTool {
-  name: string;
-  category: string;
-  primaryUse: string;
-  humanVerificationGate: string;
-  capabilities: string[];
-  docUrl?: string;
-}
-
-export interface AiWorkflowStage {
-  id: string;
-  step: string;
-  title: string;
-  actor: 'HUMAN ENGINEER' | 'AI CODING AGENT' | 'HYBRID COLLABORATION';
-  summary: string;
-  verificationAction: string;
-  rawAiSnippet: string;
-  humanVerifiedSnippet: string;
-  reviewAuditNote: string;
-}
-
-export interface ExperienceResponsibility {
-  id: string;
-  index: string;
-  category: 'QA & Exploration' | 'Test Automation' | 'API & Data' | 'Full-Stack & AI' | 'Collaboration';
-  title: string;
+  subtitle: string;
   description: string;
-  technologies: string[];
-  verificationImpact: string;
+  focusAreas: string[];
 }
 
-export interface PlatformExplorationLayer {
-  id: string;
-  name: string;
-  tag: string;
+export interface ExperienceItem {
+  company: string;
+  role: string;
+  location: string;
+  period: string;
   summary: string;
-  explorationVectors: string[];
-  validationFocus: string;
-  tooling: string[];
+  highlights: {
+    title: string;
+    detail: string;
+    tags: string[];
+  }[];
 }

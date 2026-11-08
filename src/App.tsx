@@ -1,43 +1,27 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
-import { CAPABILITY_DOMAINS, NAV_SECTIONS } from './data/portfolioData';
-import { CoreSimulationState, SectionId } from './types/portfolio';
+import { CHAPTERS } from './data/portfolioData';
+import { CapabilityId, ChapterId } from './types/portfolio';
 import { IntroLoader } from './components/IntroLoader';
 import { Navbar } from './components/Navbar';
 import { VerificationCoreScene } from './components/canvas/VerificationCoreScene';
 import { HeroSection } from './components/sections/HeroSection';
 import { AboutSection } from './components/sections/AboutSection';
 import { CapabilitiesSection } from './components/sections/CapabilitiesSection';
-import { AutomationLabSection } from './components/sections/AutomationLabSection';
-import { AiEngineeringSection } from './components/sections/AiEngineeringSection';
 import { ExperienceSection } from './components/sections/ExperienceSection';
-import { EducationSection } from './components/sections/EducationSection';
 import { ContactSection } from './components/sections/ContactSection';
 
 gsap.registerPlugin(ScrollTrigger);
 
-const SECTION_DEFAULT_SIMULATION: Record<SectionId, CoreSimulationState> = {
-  hero: 'nominal',
-  about: 'nominal',
-  capabilities: 'nominal',
-  'automation-lab': 'executing',
-  'ai-engineering': 'ai_synthesis',
-  experience: 'nominal',
-  education: 'nominal',
-  contact: 'nominal',
-};
-
 export const App: React.FC = () => {
   const [isLoaded, setIsLoaded] = useState<boolean>(false);
-  const [activeSection, setActiveSection] = useState<SectionId>('hero');
+  const [activeChapter, setActiveChapter] = useState<ChapterId>('introduction');
   const [scrollProgress, setScrollProgress] = useState<number>(0);
-  const [activeCapabilityId, setActiveCapabilityId] = useState<string>(
-    CAPABILITY_DOMAINS[0].id
-  );
-  const [simulationState, setSimulationState] =
-    useState<CoreSimulationState>('nominal');
-  const [inspectMode, setInspectMode] = useState<boolean>(false);
+  const [activePlatformIndex, setActivePlatformIndex] = useState<number>(0);
+  const [activeCapabilityId, setActiveCapabilityId] =
+    useState<CapabilityId>('quality-engineering');
+  const [activeLensIndex, setActiveLensIndex] = useState<number>(0);
   const [reducedMotion, setReducedMotion] = useState<boolean>(() => {
     if (typeof window === 'undefined' || !window.matchMedia) return false;
     return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -45,7 +29,6 @@ export const App: React.FC = () => {
 
   const mainRef = useRef<HTMLElement>(null);
 
-  // Detect OS prefers-reduced-motion changes
   useEffect(() => {
     if (typeof window === 'undefined' || !window.matchMedia) return;
     const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
@@ -54,67 +37,68 @@ export const App: React.FC = () => {
     return () => mq.removeEventListener('change', onChange);
   }, []);
 
-  // Escape key exits 3D orbit inspect mode
-  useEffect(() => {
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && inspectMode) {
-        setInspectMode(false);
-      }
-    };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [inspectMode]);
-
-  // Global scroll progress & GSAP ScrollTrigger section choreography
   useEffect(() => {
     const handleScroll = () => {
-      const docHeight =
-        document.documentElement.scrollHeight - window.innerHeight;
-      const ratio = docHeight > 0 ? Math.min(1, Math.max(0, window.scrollY / docHeight)) : 0;
-      setScrollProgress(ratio);
+      const y = window.scrollY;
+      const offsets = CHAPTERS.map((ch) => {
+        const el = document.getElementById(ch.id);
+        return el ? el.offsetTop : 0;
+      });
+      const n = offsets.length - 1;
+      if (n <= 0) {
+        setScrollProgress(0);
+        return;
+      }
+      if (y <= offsets[0]) {
+        setScrollProgress(0);
+        return;
+      }
+      if (y >= offsets[n]) {
+        setScrollProgress(1);
+        return;
+      }
+      for (let i = 0; i < n; i++) {
+        if (y >= offsets[i] && y <= offsets[i + 1]) {
+          const span = Math.max(1, offsets[i + 1] - offsets[i]);
+          const local = (y - offsets[i]) / span;
+          setScrollProgress((i + local) / n);
+          return;
+        }
+      }
     };
 
     window.addEventListener('scroll', handleScroll, { passive: true });
     handleScroll();
 
     const ctx = gsap.context(() => {
-      NAV_SECTIONS.forEach((sec) => {
-        const el = document.getElementById(sec.id);
+      CHAPTERS.forEach((chapter) => {
+        const el = document.getElementById(chapter.id);
         if (!el) return;
 
         ScrollTrigger.create({
           trigger: el,
-          start: 'top 52%',
-          end: 'bottom 48%',
-          onEnter: () => {
-            setActiveSection(sec.id);
-            setSimulationState(SECTION_DEFAULT_SIMULATION[sec.id]);
-          },
-          onEnterBack: () => {
-            setActiveSection(sec.id);
-            setSimulationState(SECTION_DEFAULT_SIMULATION[sec.id]);
-          },
+          start: 'top 55%',
+          end: 'bottom 45%',
+          onEnter: () => setActiveChapter(chapter.id),
+          onEnterBack: () => setActiveChapter(chapter.id),
         });
 
         if (!reducedMotion) {
-          const headerEl = el.querySelector('.section-header');
-          if (headerEl) {
-            gsap.fromTo(
-              headerEl,
-              { opacity: 0.25, y: 24 },
-              {
-                opacity: 1,
-                y: 0,
-                duration: 0.7,
-                ease: 'power3.out',
-                scrollTrigger: {
-                  trigger: el,
-                  start: 'top 82%',
-                  toggleActions: 'play none none none',
-                },
-              }
-            );
-          }
+          gsap.fromTo(
+            el.querySelectorAll('.chapter-title, .hero-chapter__headline'),
+            { opacity: 0.15, y: 28 },
+            {
+              opacity: 1,
+              y: 0,
+              duration: 0.9,
+              ease: 'power3.out',
+              scrollTrigger: {
+                trigger: el,
+                start: 'top 80%',
+                toggleActions: 'play none none none',
+              },
+            }
+          );
         }
       });
     }, mainRef);
@@ -125,94 +109,55 @@ export const App: React.FC = () => {
     };
   }, [reducedMotion]);
 
-  const handleNavigate = useCallback((id: SectionId) => {
-    setInspectMode(false);
-    setActiveSection(id);
-    const targetEl = document.getElementById(id);
-    if (targetEl) {
-      targetEl.scrollIntoView({ behavior: reducedMotion ? 'auto' : 'smooth' });
-    }
-  }, [reducedMotion]);
-
-  const handleSelectCapability = useCallback((domainId: string) => {
-    setActiveCapabilityId(domainId);
-  }, []);
+  const handleNavigate = useCallback(
+    (id: ChapterId) => {
+      setActiveChapter(id);
+      const el = document.getElementById(id);
+      if (el) {
+        el.scrollIntoView({ behavior: reducedMotion ? 'auto' : 'smooth' });
+      }
+    },
+    [reducedMotion]
+  );
 
   return (
-    <div className="app-shell">
-      <a href="#main-content" className="skip-to-content">
-        Skip to main content
+    <div className="atelier-app">
+      <a href="#main-content" className="skip-link">
+        Skip to content
       </a>
 
       {!isLoaded && <IntroLoader onComplete={() => setIsLoaded(true)} />}
 
-      {/* Fixed Real-Time 3D WebGL Environment */}
+      {/* Full-Screen Sculptural 3D World */}
       <VerificationCoreScene
-        activeSection={activeSection}
+        activeChapter={activeChapter}
         scrollProgress={scrollProgress}
+        activePlatformIndex={activePlatformIndex}
         activeCapabilityId={activeCapabilityId}
-        onSelectCapability={handleSelectCapability}
-        simulationState={simulationState}
-        inspectMode={inspectMode}
+        activeLensIndex={activeLensIndex}
         reducedMotion={reducedMotion}
       />
 
-      {/* Persistent Telemetry HUD Navigation */}
-      <Navbar
-        activeSection={activeSection}
-        onNavigate={handleNavigate}
-        inspectMode={inspectMode}
-        onToggleInspect={() => setInspectMode((prev) => !prev)}
-        reducedMotion={reducedMotion}
-        onToggleReducedMotion={() => setReducedMotion((prev) => !prev)}
-        simulationState={simulationState}
-      />
+      {/* Minimal Floating Navigation */}
+      <Navbar activeChapter={activeChapter} onNavigate={handleNavigate} />
 
-      {/* Interactive 3D Orbit Mode Floating Banner */}
-      {inspectMode && (
-        <div className="orbit-mode-banner" role="status" aria-live="polite">
-          <span>
-            <strong>3D ORBIT INSPECTION ACTIVE:</strong> Drag to rotate • Scroll to zoom • Click any
-            orbital satellite node
-          </span>
-          <button
-            type="button"
-            onClick={() => setInspectMode(false)}
-            className="orbit-mode-banner__exit"
-          >
-            RETURN TO SCROLL STORYTELLING (ESC)
-          </button>
-        </div>
-      )}
+      {/* Five Spatial Storytelling Chapters */}
+      <main id="main-content" ref={mainRef} className="atelier-main">
+        <HeroSection onNavigate={handleNavigate} />
 
-      {/* Scroll-Driven Storytelling DOM Overlay */}
-      <main
-        id="main-content"
-        ref={mainRef}
-        className={`portfolio-main ${inspectMode ? 'portfolio-main--inspect-dim' : ''}`}
-      >
-        <HeroSection
-          simulationState={simulationState}
-          onChangeSimulationState={setSimulationState}
-          inspectMode={inspectMode}
-          onToggleInspect={() => setInspectMode((prev) => !prev)}
-          onNavigate={handleNavigate}
+        <AboutSection
+          activePlatformIndex={activePlatformIndex}
+          onSelectPlatform={setActivePlatformIndex}
         />
-
-        <AboutSection onChangeSimulationState={setSimulationState} />
 
         <CapabilitiesSection
           activeCapabilityId={activeCapabilityId}
-          onSelectCapability={handleSelectCapability}
+          onSelectCapability={setActiveCapabilityId}
+          activeLensIndex={activeLensIndex}
+          onSelectLens={setActiveLensIndex}
         />
 
-        <AutomationLabSection onChangeSimulationState={setSimulationState} />
-
-        <AiEngineeringSection onChangeSimulationState={setSimulationState} />
-
         <ExperienceSection />
-
-        <EducationSection />
 
         <ContactSection />
       </main>

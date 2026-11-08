@@ -1,66 +1,64 @@
-# Design System & Creative Direction: Ritik Thakre — Immersive 3D Live Portfolio
+# Design System & Creative Direction: Ritik Thakre — Sculptural 3D Portfolio
 
-## 1. Visual Theme & Creative Direction
-**Concept**: *The Verification Core — An Interactive Precision Engineering & Telemetry Observatory*
+## 1. Creative Vision & Art Direction
+**Concept**: *Luminous Architecture of Quality, Automation & AI*
 
-Rather than a conventional resume template or generic floating geometric shapes, this portfolio functions as a real-time 3D engineering instrument. It visualizes the intersection of **Exploratory Quality Engineering**, **Enterprise Test Automation**, and **Human-in-the-Loop AI-Assisted Software Development**.
+Moving completely away from technical monitoring dashboards, telemetry HUDs, and boxed control consoles, this portfolio is conceived as an **Awwwards-caliber sculptural 3D spatial journey**. Visitors travel through five distinct, studio-lit 3D architectural installations that visually express Ritik Thakre's craft across **Quality Engineering**, **Test Automation**, and **AI-Assisted Software Development**.
 
-- **Atmosphere**: Swiss precision telemetry instrument meets Awwwards-grade WebGL storytelling. Tactile, industrial, dark-room calibrated, and architecturally disciplined.
-- **Density**: `6 / 10` — Balanced architectural whitespace paired with structured technical telemetry inspection panels.
-- **Variance**: `8 / 10` — Asymmetric editorial grids, custom interactive matrices, and non-linear 3D spatial exploration.
-- **Motion**: `9 / 10` — Scroll-choreographed 3D camera flights via GSAP ScrollTrigger, damped pointer parallax, procedural GLSL scanline/Fresnel shaders, and spring-driven UI transitions.
+- **Atmosphere**: Cinematic gallery space with studio-lit refractive glass, brushed champagne titanium, warm alabaster typography, and volumetric depth.
+- **Spatial Storytelling**: Five distinct 3D environments arranged in world space (`Chapter I` through `Chapter V`), connected by smooth GSAP `ScrollTrigger` camera choreography and interactive 3D capability dioramas.
+- **Restraint & Clarity**: Generous open viewport space around the 3D sculptures, whisper-quiet minimal navigation, concise editorial prose, and zero dashboard clutter.
 
 ---
 
-## 2. Color System & Atmospheric Polarity
-**Intentional Dark Mode (Obsidian Telemetry Calibration)** — avoids pure `#000000` and bans generic AI purple/neon gradients.
+## 2. Color Calibration (Warm Nocturne Studio Palette)
 
-| Token Name | Hex / Value | Functional Role |
+| Token | Hex / Value | Role |
 | :--- | :--- | :--- |
-| **Obsidian Carbon** | `#090A0D` | Primary viewport canvas & deep 3D void background |
-| **Graphite Alloy** | `#111318` | Elevated interactive console surfaces & inspection modules |
-| **Anodized Slate** | `#171A21` | Hover states, secondary control surfaces, code wells |
-| **Alabaster Ivory** | `#F4F4F0` | Primary display typography & high-contrast headlines |
-| **Machined Titanium** | `#9CA3AF` | Body copy, technical narratives, architecture explanations |
-| **Muted Coordinate** | `#646B78` | Index numbers, axis coordinates, metadata labels |
-| **Hairline Structure** | `rgba(244, 244, 240, 0.09)` | `1px` architectural grid borders and dividers |
-| **Signal Vermilion** | `#FF4D29` | Primary brand accent — interactive CTAs, active 3D nodes, laser telemetry |
-| **Verification Emerald** | `#10B981` | Assertion pass states, verified API responses, nominal system status |
-| **Diagnostic Amber** | `#F59E0B` | Boundary testing, defect investigation triggers, inspection highlights |
+| **Velvet Nocturne** | `#07070A` | Deep studio backdrop canvas |
+| **Obsidian Gallery** | `#0D0E13` | Secondary atmospheric depth |
+| **Translucent Atelier** | `rgba(16, 17, 23, 0.58)` | Whisper-light floating glass surfaces (`backdrop-filter: blur(20px)`) |
+| **Warm Alabaster** | `#F5F2EB` | Primary display headlines & sculptural highlights |
+| **Brushed Champagne** | `#D6C7B2` | Editorial subheadings & warm metallic accents |
+| **Soft Stone** | `#9E9A93` | Concise body copy & narrative descriptions |
+| **Cinnabar Ember** | `#E85D3F` | Primary interactive accent & warm studio rim light |
+| **Glacial Mint** | `#6EE7B7` | Secondary refractive light accent |
+| **Subtle Hairline** | `rgba(245, 242, 235, 0.08)` | Delicate architectural dividers |
 
 ---
 
-## 3. Typography & Scannable Hierarchy
-- **Display (`--font-display`)**: `'Syne'`, `'Space Grotesk'`, sans-serif — architectural, high-character display headlines with tight tracking (`-0.03em`) and fluid scaling via `clamp()`.
-- **UI & Technical Prose (`--font-sans`)**: `'Plus Jakarta Sans'`, sans-serif — crisp, high-legibility body copy constrained to `60ch–68ch` with relaxed `1.65` line height.
-- **Telemetry & Code (`--font-mono`)**: `'JetBrains Mono'`, monospace — `font-variant-numeric: tabular-nums` for coordinates, protocol traces, Java/Selenium/Playwright snippets, and HTTP status codes.
+## 3. Typography & Hierarchy
+- **Monumental Display (`--font-display`)**: `'Syne'`, sans-serif — bold, sculptural geometric display type for hero statements and chapter titles.
+- **Editorial Accent (`--font-serif`)**: `'Instrument Serif'`, serif (italic) — adds human warmth and artistic contrast to key phrases.
+- **Clean Narrative (`--font-sans`)**: `'Plus Jakarta Sans'`, sans-serif — high-legibility, concise prose for capability storytelling and career history.
 
 ---
 
-## 4. 3D Scene Architecture & Scroll Choreography
-Built with **Three.js**, **React Three Fiber**, **Drei**, custom **GLSL Shaders**, and **GSAP ScrollTrigger**:
+## 4. Five-Chapter Spatial Structure & 3D Installations
 
-1. **The Verification Core (Central 3D Assembly)**:
-   - **Inner Crystalline Kernel**: Custom GLSL shader combining Fresnel rim illumination, procedural telemetry scanlines, and state-reactive color shifts (`Nominal Emerald`, `Signal Vermilion`, `Diagnostic Amber`).
-   - **Triple Gyroscopic Calibration Rings**: Machined metallic rings rotating on orthogonal axes representing *Exploration*, *Automation*, and *AI-Assisted Engineering*.
-   - **Six Orbital Capability Satellites**: Interactive 3D nodes positioned in orbital space corresponding to the 6 core engineering pillars. Hovering or clicking a capability domain dynamically aims the 3D core and illuminates data conduits.
-   - **Telemetry Particle Field & Architectural Horizon Grid**: Over 1,000 instanced spatial particles and a perspective reference plane that responds to scroll velocity and pointer coordinates.
-
-2. **Chapter-Based Camera Path**:
-   - **00 / INTRO LOADER**: Calibration sequence with real-time system readiness steps and smooth curtain reveal into the 3D canvas.
-   - **01 / HERO**: Asymmetric left-aligned typography with the 3D Verification Core anchored to the right, reacting to cursor parallax and interactive mode toggles.
-   - **02 / ABOUT**: Camera orbits into an angled inspection view alongside an interactive **4-Layer Platform Exploration Matrix** (Web, PWA, Android, iOS).
-   - **03 / CAPABILITIES**: High-angle orbital command view paired with an interactive **6-Domain Spatial Capability Matrix** and official documentation references.
-   - **04 / AUTOMATION LAB**: Equatorial close-up of data conduits paired with a live interactive **Execution & Protocol Simulator** (Selenium 4 W3C WebDriver, Playwright Java CDP Contexts, REST API + SQL CRUD Validation, Cross-Platform Regression & Defect Investigation).
-   - **05 / AI ENGINEERING**: Dual-hemisphere view paired with an interactive **Human-in-the-Loop AI Engineering Workbench** showcasing OpenAI Codex, Antigravity, Cursor, and Claude workflows with mandatory human QA validation gates.
-   - **06 / EXPERIENCE**: Vertical camera track along the **Chronos Pillar** highlighting Ritik Thakre's role as **Jr. QA Engineer at SKYESTONE AI TECH PRIVATE LIMITED** (`08 April 2026 – Present`).
-   - **07 / EDUCATION**: Focus on the **Foundational AI & Data Science Monolith** (`B.Tech – Artificial Intelligence & Data Science`, Priyadarshini Engineering College, Nagpur, `2021–2024`, `CGPA: 7.30 / 10`).
-   - **08 / CONTACT**: High-altitude orbital overview with the **Direct Transmission Terminal** (`mailto:`, `tel:`, LinkedIn, vCard download, and quick message composer).
+1. **Chapter I — Introduction (`#introduction`)**:
+   - **3D Scene**: *The Kinetic Prism Monolith* — interlocking refractive glass and brushed metal monoliths with a flowing custom GLSL light ribbon, suspended under studio `Lightformer` reflections.
+   - **Viewport Experience**: Uncluttered full-screen 3D hero showcasing `RITIK THAKRE`, `QA ENGINEER · TEST AUTOMATION · AI-ASSISTED SOFTWARE DEVELOPMENT`, and `I EXPLORE. I AUTOMATE. I ENGINEER.` with direct Resume and LinkedIn actions.
+2. **Chapter II — About & Engineering Philosophy (`#philosophy`)**:
+   - **3D Scene**: *The Multi-Platform Optical Strata* — four suspended translucent architectural planes (`Web`, `PWA`, `Android`, `iOS`) traversed by a dynamic inspection lens.
+   - **Interactive Storytelling**: Visitors explore how independent application exploration maps positive, negative, boundary, and alternative user flows across platforms.
+3. **Chapter III — Technical Capabilities (`#capabilities`)**:
+   - **3D Scene**: *Six Interactive 3D Sculptural Dioramas* — the 3D stage dynamically morphs into six custom interactive 3D visualizations:
+     - *Quality Engineering*: 3D Behavioural Prism
+     - *Test Automation*: 3D Layered Browser & Page Object Architecture
+     - *API & Data Validation*: 3D Request–Response & SQL Crystal Conduit
+     - *Software Development*: 3D Full-Stack Architectural Strata
+     - *AI-Assisted Development*: 3D Human–Agent Symbiosis Sculpture
+     - *QA Processes*: 3D Quality Lifecycle Continuum
+4. **Chapter IV — Professional Journey & Education (`#journey`)**:
+   - **3D Scene**: *The Chronos Arch & Academic Monolith* — rising sculptural arches framing Ritik's role as **Jr. QA Engineer at SKYESTONE AI TECH PRIVATE LIMITED** (`08 April 2026 – Present`) and his **B.Tech in Artificial Intelligence & Data Science** (`Priyadarshini Engineering College, Nagpur`, `2021–2024`, `CGPA: 7.30 / 10`).
+5. **Chapter V — Contact (`#contact`)**:
+   - **3D Scene**: *The Horizon Beacon* — a serene, luminous sculptural ring inviting direct collaboration via email, phone, and LinkedIn.
 
 ---
 
-## 5. Strict Content & Privacy Guardrails
-- **Zero Confidential Project Names**: No previous or current internal project names or client names appear anywhere in the UI, source code, metadata, or downloadable resume PDF.
-- **Approved Employer Only**: `SKYESTONE AI TECH PRIVATE LIMITED` (`Jr. QA Engineer`, `08 April 2026 – Present`, `Nagpur, Maharashtra`).
-- **Zero Fabricated Metrics**: No invented percentages, fake test counts, or unverified claims. All technical explanations are grounded in Ritik's real skill set and official documentation (W3C WebDriver, Playwright Java, TestNG, Postman/REST, PHP/Laravel, Ionic, Spring Boot).
-
+## 5. Content & Privacy Principles
+- Grounded strictly in Ritik Thakre's approved resume.
+- Zero confidential project names, client names, internal endpoints, database schemas, or synthetic project-shaped code/SQL examples.
+- Zero fabricated performance metrics or unsupported absolute claims.
+- Conceptual 3D visualizations are clearly presented as interactive conceptual representations of technical disciplines.

@@ -17,6 +17,7 @@ export interface AboutStageProps {
   onSelectScreen?: (index: number) => void;
   viewAngle?: 'front' | 'side' | 'back' | 'free';
   onSelectViewAngle?: (angle: 'front' | 'side' | 'back' | 'free') => void;
+  viewMode?: 'all' | 'single';
   autoSpin?: boolean;
   onToggleAutoSpin?: () => void;
   xrayFlipped?: boolean;
@@ -42,7 +43,7 @@ const HARDWARE_SPECS: PlatformHardwareSpec[] = [
     accent: '#ff3322',
     formFactor: 'web',
     texW: 1600,
-    texH: 1000,
+    texH: 1036,
   },
   {
     id: 'pwa',
@@ -51,7 +52,7 @@ const HARDWARE_SPECS: PlatformHardwareSpec[] = [
     accent: '#38bdf8',
     formFactor: 'pwa',
     texW: 1400,
-    texH: 1000,
+    texH: 1072,
   },
   {
     id: 'android',
@@ -81,6 +82,8 @@ interface DeviceItem3DProps {
   onCycleScreen: () => void;
   onSelect: (index: number) => void;
   reduced: boolean;
+  viewMode: 'all' | 'single';
+  userRot: React.MutableRefObject<{ x: number; y: number }>;
 }
 
 const DeviceItem3D: React.FC<DeviceItem3DProps> = ({
@@ -91,6 +94,8 @@ const DeviceItem3D: React.FC<DeviceItem3DProps> = ({
   onCycleScreen,
   onSelect,
   reduced,
+  viewMode,
+  userRot,
 }) => {
   const groupRef = useRef<THREE.Group>(null);
   const { gl } = useThree();
@@ -146,47 +151,34 @@ const DeviceItem3D: React.FC<DeviceItem3DProps> = ({
       }
     }
 
-    // Circular 3D orbital deck placement
-    const rel = (index - activePlatform + 4) % 4;
     let targetX = 0;
     let targetY = 0;
     let targetZ = 0;
     let targetRotY = 0;
     let targetRotX = 0;
     let targetScale = 1;
+    const phone = spec.formFactor === 'android' || spec.formFactor === 'ios';
 
-    if (rel === 0) {
-      // Hero center
-      targetX = 0;
-      targetY = reduced ? 0 : Math.sin(t * 1.5) * 0.04;
+    if (viewMode === 'all') {
+      // Showcase row: all 4 devices visible together with realistic proportions
+      // MacBook (0.38) > iPad (0.32) > Galaxy S24 (0.38) ~ iPhone 15 (0.38)
+      const xs = [-1.45, -0.45, 0.48, 1.35];
+      const ys = [-0.18, -0.06, -0.06, -0.06];
+      const sc = [0.38, 0.32, 0.38, 0.38];
+      targetX = xs[index];
+      targetY = (reduced ? 0 : Math.sin(t * 1.2 + index) * 0.035) + ys[index];
+      targetZ = 0.45;
+      targetScale = sc[index];
+      targetRotY = reduced ? 0 : Math.sin(t * 0.5 + index * 0.8) * 0.14;
+    } else if (isActive) {
+      targetY = (reduced ? 0 : Math.sin(t * 1.5) * 0.03) + (spec.formFactor === 'web' ? 0.05 : 0);
       targetZ = 0.9;
-      targetRotY = reduced ? 0 : Math.sin(t * 0.6) * 0.05;
-      targetRotX = reduced ? 0 : Math.cos(t * 0.8) * 0.02;
-      targetScale = spec.formFactor === 'android' || spec.formFactor === 'ios' ? 0.88 : 0.96;
-    } else if (rel === 1) {
-      // Right orbital slot
-      targetX = 2.65;
-      targetY = 0.15 + (reduced ? 0 : Math.sin(t * 1.2 + 1) * 0.03);
-      targetZ = -1.45;
-      targetRotY = -0.52;
-      targetRotX = 0.02;
-      targetScale = 0.58;
-    } else if (rel === 2) {
-      // Deep top orbital slot
-      targetX = 0;
-      targetY = 1.45 + (reduced ? 0 : Math.cos(t * 1.1 + 2) * 0.03);
-      targetZ = -2.6;
-      targetRotY = 0.08;
-      targetRotX = 0.14;
-      targetScale = 0.46;
+      targetScale = phone ? 0.88 : spec.formFactor === 'web' ? 0.68 : 0.9;
+      targetRotX = 0;
+      targetRotY = 0;
     } else {
-      // Left orbital slot
-      targetX = -2.65;
-      targetY = -0.15 + (reduced ? 0 : Math.sin(t * 1.3 + 3) * 0.03);
-      targetZ = -1.45;
-      targetRotY = 0.52;
-      targetRotX = -0.02;
-      targetScale = 0.58;
+      targetScale = 0.0001;
+      targetZ = -3;
     }
 
     const damp = Math.min(1, delta * 6.5);
@@ -194,8 +186,12 @@ const DeviceItem3D: React.FC<DeviceItem3DProps> = ({
     g.position.y = THREE.MathUtils.lerp(g.position.y, targetY, damp);
     g.position.z = THREE.MathUtils.lerp(g.position.z, targetZ, damp);
 
-    g.rotation.x = THREE.MathUtils.lerp(g.rotation.x, targetRotX, damp);
-    g.rotation.y = THREE.MathUtils.lerp(g.rotation.y, targetRotY, damp);
+    // Single-model mode: full 360° orbit around the device's own centre
+    const spinX = viewMode === 'single' && isActive ? userRot.current.x : 0;
+    const spinY = viewMode === 'single' && isActive ? userRot.current.y : 0;
+    g.rotation.x = THREE.MathUtils.lerp(g.rotation.x, targetRotX + spinX, Math.min(1, delta * 9));
+    g.rotation.y = THREE.MathUtils.lerp(g.rotation.y, targetRotY + spinY, Math.min(1, delta * 9));
+    g.visible = g.scale.x > 0.02;
 
     const s = THREE.MathUtils.lerp(g.scale.x, targetScale, damp);
     g.scale.setScalar(s);
@@ -206,7 +202,9 @@ const DeviceItem3D: React.FC<DeviceItem3DProps> = ({
       ref={groupRef}
       onClick={(e) => {
         e.stopPropagation();
-        if (isActive) {
+        if (viewMode === 'all') {
+          onSelect(index);
+        } else if (isActive) {
           onCycleScreen();
         } else {
           onSelect(index);
@@ -236,6 +234,7 @@ interface HardwareSceneProps {
   onCycleScreen: () => void;
   viewAngle: 'front' | 'side' | 'back' | 'free';
   autoSpin: boolean;
+  viewMode: 'all' | 'single';
   reduced: boolean;
 }
 
@@ -246,6 +245,7 @@ const HardwareScene: React.FC<HardwareSceneProps> = ({
   onCycleScreen,
   viewAngle,
   autoSpin,
+  viewMode,
   reduced,
 }) => {
   const rigRef = useRef<THREE.Group>(null);
@@ -270,25 +270,14 @@ const HardwareScene: React.FC<HardwareSceneProps> = ({
       }
     }
 
-    const px = state.pointer.x * 0.08;
-    const py = state.pointer.y * 0.05;
-
-    rig.rotation.y = THREE.MathUtils.lerp(
-      rig.rotation.y,
-      userRotRef.current.y + px,
-      Math.min(1, delta * 8)
-    );
-    rig.rotation.x = THREE.MathUtils.lerp(
-      rig.rotation.x,
-      userRotRef.current.x - py,
-      Math.min(1, delta * 8)
-    );
+    rig.rotation.set(0, 0, 0);
   });
 
   return (
     <group
       ref={rigRef}
       onPointerDown={(e) => {
+        if (viewMode !== 'single') return;
         draggingRef.current = true;
         dragStartRef.current = { x: e.clientX, y: e.clientY };
       }}
@@ -301,8 +290,8 @@ const HardwareScene: React.FC<HardwareSceneProps> = ({
         userRotRef.current.y += dx;
         userRotRef.current.x = THREE.MathUtils.clamp(
           userRotRef.current.x + dy,
-          -Math.PI / 3,
-          Math.PI / 3
+          -Math.PI / 2,
+          Math.PI / 2
         );
       }}
       onPointerUp={() => {
@@ -322,6 +311,8 @@ const HardwareScene: React.FC<HardwareSceneProps> = ({
           onCycleScreen={onCycleScreen}
           onSelect={onSelectPlatform}
           reduced={reduced}
+          viewMode={viewMode}
+          userRot={userRotRef}
         />
       ))}
     </group>
@@ -335,6 +326,7 @@ export const AboutStage: React.FC<AboutStageProps> = ({
   onSelectScreen,
   viewAngle = 'free',
   autoSpin = false,
+  viewMode = 'single',
   reduced = false,
 }) => {
   const [webglReady, setWebglReady] = useState(true);
@@ -393,6 +385,7 @@ export const AboutStage: React.FC<AboutStageProps> = ({
           onCycleScreen={handleCycleScreen}
           viewAngle={viewAngle}
           autoSpin={autoSpin}
+          viewMode={viewMode}
           reduced={reduced}
         />
 

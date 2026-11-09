@@ -89,6 +89,7 @@ export const AboutPage: React.FC<AboutPageProps> = ({ reduced = false, onNavigat
   const [activeScreen, setActiveScreen] = useState(0);
   const [viewAngle, setViewAngle] = useState<'front' | 'side' | 'back' | 'free'>('front');
   const [autoSpin, setAutoSpin] = useState(false);
+  const [viewMode, setViewMode] = useState<'all' | 'single'>('all');
   const [xrayFlipped, setXrayFlipped] = useState(false);
   const [activeLens, setActiveLens] = useState<'all' | 'explore' | 'automate' | 'fullstack' | 'ai'>('all');
   const [readProgress, setReadProgress] = useState(0.76);
@@ -305,15 +306,26 @@ export const AboutPage: React.FC<AboutPageProps> = ({ reduced = false, onNavigat
         <div className="about__canvas-col">
           <div className="about__canvas-toolbar">
             <div className="about__platform-Tabs" role="tablist" aria-label="3D Hardware Platform">
+              <button
+                type="button"
+                className={`stage-btn${viewMode === 'all' ? ' stage-btn--active' : ''}`}
+                onClick={() => {
+                  setViewMode('all');
+                  setAutoSpin(false);
+                }}
+              >
+                ◫ View All 4
+              </button>
               {PLATFORM_STRATA.map((p, idx) => (
                 <button
                   key={p.id}
                   type="button"
                   role="tab"
-                  aria-selected={activePlatform === idx}
-                  className={`stage-btn${activePlatform === idx ? ' stage-btn--active' : ''}`}
+                  aria-selected={viewMode === 'single' && activePlatform === idx}
+                  className={`stage-btn${viewMode === 'single' && activePlatform === idx ? ' stage-btn--active' : ''}`}
                   onClick={() => {
                     setActivePlatform(idx);
+                    setViewMode('single');
                     setViewAngle('front');
                   }}
                 >
@@ -342,12 +354,15 @@ export const AboutPage: React.FC<AboutPageProps> = ({ reduced = false, onNavigat
 
           {/* 360° Hardware Inspection Toolbar (Inspect Front, Rails, Backside & Cameras) */}
           <div className="about__inspect-toolbar">
-            <span className="about__inspect-label">360° INSPECT:</span>
+            <span className="about__inspect-label">
+              {viewMode === 'all' ? '360° INSPECT (TAP ANY):' : '360° INSPECT STUDIO:'}
+            </span>
             <div className="about__inspect-btns">
               <button
                 type="button"
-                className={`stage-btn stage-btn--sm${viewAngle === 'front' ? ' stage-btn--active' : ''}`}
+                className={`stage-btn stage-btn--sm${viewMode === 'single' && viewAngle === 'front' && !autoSpin ? ' stage-btn--active' : ''}`}
                 onClick={() => {
+                  setViewMode('single');
                   setAutoSpin(false);
                   setViewAngle('front');
                 }}
@@ -356,8 +371,9 @@ export const AboutPage: React.FC<AboutPageProps> = ({ reduced = false, onNavigat
               </button>
               <button
                 type="button"
-                className={`stage-btn stage-btn--sm${viewAngle === 'side' ? ' stage-btn--active' : ''}`}
+                className={`stage-btn stage-btn--sm${viewMode === 'single' && viewAngle === 'side' && !autoSpin ? ' stage-btn--active' : ''}`}
                 onClick={() => {
+                  setViewMode('single');
                   setAutoSpin(false);
                   setViewAngle('side');
                 }}
@@ -366,8 +382,9 @@ export const AboutPage: React.FC<AboutPageProps> = ({ reduced = false, onNavigat
               </button>
               <button
                 type="button"
-                className={`stage-btn stage-btn--sm${viewAngle === 'back' ? ' stage-btn--active' : ''}`}
+                className={`stage-btn stage-btn--sm${viewMode === 'single' && viewAngle === 'back' && !autoSpin ? ' stage-btn--active' : ''}`}
                 onClick={() => {
+                  setViewMode('single');
                   setAutoSpin(false);
                   setViewAngle('back');
                 }}
@@ -376,13 +393,14 @@ export const AboutPage: React.FC<AboutPageProps> = ({ reduced = false, onNavigat
               </button>
               <button
                 type="button"
-                className={`stage-btn stage-btn--sm${autoSpin ? ' stage-btn--active' : ''}`}
+                className={`stage-btn stage-btn--sm${viewMode === 'single' && autoSpin ? ' stage-btn--active' : ''}`}
                 onClick={() => {
+                  setViewMode('single');
                   setAutoSpin(!autoSpin);
                   setViewAngle('free');
                 }}
               >
-                {autoSpin ? '⏸ Pause Spin' : '🔄 360° Auto-Spin'}
+                {viewMode === 'single' && autoSpin ? '⏸ Pause Spin' : '🔄 360° Auto-Spin'}
               </button>
             </div>
           </div>
@@ -391,8 +409,10 @@ export const AboutPage: React.FC<AboutPageProps> = ({ reduced = false, onNavigat
             activePlatform={activePlatform}
             onSelectPlatform={(idx) => {
               setActivePlatform(idx);
+              setViewMode('single');
               setViewAngle('front');
             }}
+            viewMode={viewMode}
             activeScreen={activeScreen}
             onSelectScreen={(s) => setActiveScreen(s)}
             viewAngle={viewAngle}

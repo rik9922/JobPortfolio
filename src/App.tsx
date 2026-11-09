@@ -81,7 +81,7 @@ const App: React.FC = () => {
           <Nav active={page} onNavigate={navigate} />
           <main id="main" key={page} className="stage">
             {page === 'home' && <HomePage reduced={reduced} />}
-            {page === 'about' && <AboutPage />}
+            {page === 'about' && <AboutPage reduced={reduced} onNavigate={navigate} />}
             {page === 'capabilities' && <CapabilitiesPage reduced={reduced} />}
             {page === 'journey' && <JourneyPage />}
             {page === 'play' && <PlayPage reduced={reduced} />}

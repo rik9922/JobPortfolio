@@ -10,6 +10,7 @@ const VERTEX = /* glsl */ `
   uniform float uPixelRatio;
   uniform vec2 uMouse;
   uniform float uRepel;
+  uniform float uMode;
   attribute vec3 aScatter;
   attribute vec3 aColor;
   attribute float aRnd;
@@ -17,6 +18,8 @@ const VERTEX = /* glsl */ `
   varying vec3 vColor;
   varying float vAlpha;
   varying float vBoost;
+  varying vec2 vPos;
+  varying float vMode;
 
   void main() {
     vec3 p = position;
@@ -29,10 +32,10 @@ const VERTEX = /* glsl */ `
 
     vec2 d = p.xy - uMouse;
     float dist = length(d);
-    float f = exp(-dist * dist * 28.0) * uRepel;
+    float f = exp(-dist * dist * 22.0) * uRepel;
     vec2 dir = d / max(dist, 0.0001);
-    p.xy += dir * f * 0.16 + vec2(-dir.y, dir.x) * f * 0.07 * (aRnd - 0.5);
-    p.z += f * 0.28 * (aRnd - 0.2);
+    p.xy += dir * f * 0.18 + vec2(-dir.y, dir.x) * f * 0.08 * (aRnd - 0.5);
+    p.z += f * 0.32 * (aRnd - 0.2);
 
     vec4 mv = modelViewMatrix * vec4(p, 1.0);
     gl_PointSize = aSize * uScale * uPixelRatio * (5.0 / -mv.z) * (1.0 + f * 0.55);
@@ -40,18 +43,37 @@ const VERTEX = /* glsl */ `
     vColor = aColor;
     vAlpha = mix(0.0, 1.0, t);
     vBoost = f;
+    vPos = position.xy;
+    vMode = uMode;
   }
 `;
 
 const FRAGMENT = /* glsl */ `
+  uniform float uTime;
   varying vec3 vColor;
   varying float vAlpha;
   varying float vBoost;
+  varying vec2 vPos;
+  varying float vMode;
   void main() {
     float d = length(gl_PointCoord - 0.5);
     if (d > 0.5) discard;
     float a = smoothstep(0.5, 0.08, d);
-    vec3 col = mix(vColor, vec3(1.0, 0.26, 0.18), clamp(vBoost * 0.65, 0.0, 0.75));
+    vec3 baseCol = vColor;
+    float lum = dot(baseCol, vec3(0.2126, 0.7152, 0.0722));
+
+    if (vMode > 0.5 && vMode < 1.5) {
+      // Mode 1: Cyber Matrix (high-contrast silver + crimson highlights)
+      vec3 mono = vec3(pow(lum, 0.85) * 1.15);
+      baseCol = mix(mono, vec3(1.0, 0.22, 0.15), step(0.72, lum) * 0.35);
+    } else if (vMode > 1.5) {
+      // Mode 2: Blueprint Scan (animated horizontal telemetry scanline)
+      float scan = exp(-pow((vPos.y - sin(uTime * 1.4) * 1.35) * 6.5, 2.0));
+      vec3 tint = mix(baseCol, vec3(0.22, 0.74, 0.97), 0.38);
+      baseCol = mix(tint, vec3(0.16, 0.92, 0.45), scan * 0.75);
+    }
+
+    vec3 col = mix(baseCol, vec3(1.0, 0.26, 0.18), clamp(vBoost * 0.7, 0.0, 0.8));
     gl_FragColor = vec4(col, a * vAlpha);
   }
 `;
@@ -133,7 +155,19 @@ function buildParticles(img: HTMLImageElement): ParticleData {
   };
 }
 
-const Portrait: React.FC<{ reduced: boolean }> = ({ reduced }) => {
+export interface PortraitParticlesProps {
+  reduced: boolean;
+  variant?: 'hero' | 'about';
+  mode?: 'studio' | 'cyber' | 'blueprint';
+  scatterPulse?: number;
+}
+
+const Portrait: React.FC<PortraitParticlesProps> = ({
+  reduced,
+  variant = 'hero',
+  mode = 'studio',
+  scatterPulse = 0,
+}) => {
   const [data, setData] = useState<ParticleData | null>(null);
   const matRef = useRef<THREE.ShaderMaterial>(null);
   const groupRef = useRef<THREE.Group>(null);
@@ -156,9 +190,14 @@ const Portrait: React.FC<{ reduced: boolean }> = ({ reduced }) => {
       uPixelRatio: { value: 1 },
       uMouse: { value: new THREE.Vector2(9, 9) },
       uRepel: { value: 0 },
+      uMode: { value: 0 },
     }),
     []
   );
+
+  useEffect(() => {
+    uniforms.uMode.value = mode === 'cyber' ? 1 : mode === 'blueprint' ? 2 : 0;
+  }, [mode, uniforms]);
 
   useEffect(() => {
     if (!data) return;
@@ -166,24 +205,44 @@ const Portrait: React.FC<{ reduced: boolean }> = ({ reduced }) => {
       uniforms.uAssemble.value = 1;
       return;
     }
-    const tween = gsap.to(uniforms.uAssemble, { value: 1, duration: 2.4, ease: 'power2.out', delay: 0.12 });
+    const tween = gsap.to(uniforms.uAssemble, { value: 1, duration: 2.2, ease: 'power2.out', delay: 0.08 });
     return () => {
       tween.kill();
     };
   }, [data, reduced, uniforms]);
 
+  useEffect(() => {
+    if (scatterPulse <= 0 || reduced) return;
+    const tl = gsap.timeline();
+    tl.to(uniforms.uAssemble, { value: 0.08, duration: 0.45, ease: 'power3.out' }).to(uniforms.uAssemble, {
+      value: 1,
+      duration: 1.35,
+      ease: 'expo.out',
+    });
+    return () => {
+      tl.kill();
+    };
+  }, [scatterPulse, reduced, uniforms]);
+
   useFrame((state, delta) => {
     uniforms.uTime.value += delta;
     uniforms.uPixelRatio.value = state.gl.getPixelRatio();
-    uniforms.uScale.value = (size.height / 900) * (size.width > 900 ? 4.1 : 3.3);
+    const basePointScale =
+      variant === 'about'
+        ? (size.height / 520) * 3.7
+        : (size.height / 900) * (size.width > 900 ? 4.1 : 3.3);
+    uniforms.uScale.value = basePointScale;
 
     const cam = camera as THREE.PerspectiveCamera;
     const visH = 2 * Math.tan((cam.fov * Math.PI) / 360) * cam.position.z;
     const visW = visH * (size.width / size.height);
-    const s = Math.min(1.08, (visW * 1.04) / PORTRAIT_SIZE);
+    const s =
+      variant === 'about'
+        ? Math.min(0.96, (visW * 0.92) / PORTRAIT_SIZE)
+        : Math.min(1.08, (visW * 1.04) / PORTRAIT_SIZE);
     if (groupRef.current) {
       groupRef.current.scale.setScalar(s);
-      groupRef.current.position.y = size.width < 760 ? -0.22 : -0.08;
+      groupRef.current.position.y = variant === 'about' ? -0.1 : size.width < 760 ? -0.22 : -0.08;
     }
 
     if (!reduced) {
@@ -229,7 +288,7 @@ const Portrait: React.FC<{ reduced: boolean }> = ({ reduced }) => {
   );
 };
 
-export const PortraitParticles: React.FC<{ reduced: boolean }> = ({ reduced }) => (
+export const PortraitParticles: React.FC<PortraitParticlesProps> = (props) => (
   <Canvas
     className="portrait-canvas"
     dpr={[1, 2]}
@@ -237,6 +296,6 @@ export const PortraitParticles: React.FC<{ reduced: boolean }> = ({ reduced }) =
     gl={{ antialias: true, alpha: true }}
     aria-hidden="true"
   >
-    <Portrait reduced={reduced} />
+    <Portrait {...props} />
   </Canvas>
 );

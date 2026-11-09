@@ -440,12 +440,340 @@ a {
 }
 
 /* ---------- about / journey ---------- */
+.about.page--scroll {
+  padding-top: 4.8rem;
+}
 .about__top {
   display: grid;
   grid-template-columns: minmax(0, 1.3fr) minmax(300px, 0.95fr);
   gap: clamp(1.5rem, 3.5vw, 3.5rem);
   align-items: end;
   margin-bottom: clamp(2rem, 5vw, 4rem);
+}
+/* ---------- about / intro & 3d hardware constellation ---------- */
+.about.page--scroll {
+  padding-top: 5.2rem;
+  padding-bottom: 5rem;
+}
+
+/* Dual-row infinite ticker marquee (Reel 3 style) */
+.about__ticker {
+  position: relative;
+  width: 100vw;
+  margin-left: calc(-50vw + 50%);
+  margin-bottom: clamp(2.5rem, 5vw, 4.2rem);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  padding: 0.75rem 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(5, 5, 8, 0.65);
+  mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
+}
+.about__ticker-track {
+  display: flex;
+  width: max-content;
+  gap: 2.2rem;
+  white-space: nowrap;
+  animation: tickerScroll 36s linear infinite;
+  will-change: transform;
+}
+.about__ticker-track--reverse {
+  animation: tickerScrollReverse 40s linear infinite;
+}
+@keyframes tickerScroll {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+@keyframes tickerScrollReverse {
+  from { transform: translateX(-50%); }
+  to { transform: translateX(0); }
+}
+.about__ticker-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.65rem;
+  font-family: var(--display);
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-dim);
+}
+.about__ticker-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--red);
+  box-shadow: 0 0 8px var(--red);
+}
+
+/* Reel 3 Editorial Intro Split */
+.about__intro-split {
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.15fr);
+  gap: clamp(1.8rem, 4vw, 4rem);
+  align-items: start;
+  margin-bottom: clamp(3.5rem, 6vw, 5.5rem);
+}
+.about__intro-left {
+  display: flex;
+  flex-direction: column;
+  gap: 1.2rem;
+}
+.about__intro-word {
+  margin: 0;
+  font-family: var(--display);
+  font-weight: 800;
+  font-size: clamp(3.8rem, 8.5vw, 8.2rem);
+  line-height: 0.92;
+  letter-spacing: -0.04em;
+}
+.about__intro-quote {
+  margin: 0;
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: clamp(1.35rem, 2.2vw, 1.85rem);
+  line-height: 1.3;
+  color: var(--ink);
+  max-width: 28rem;
+}
+.about__meta-strip {
+  display: flex;
+  align-items: center;
+  gap: 1.2rem;
+  padding: 1.1rem 1.35rem;
+  border-radius: 16px;
+  background: rgba(14, 16, 24, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+}
+.about__meta-divider {
+  width: 1px;
+  height: 38px;
+  background: rgba(255, 255, 255, 0.1);
+}
+.about__meta-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.18rem;
+}
+.about__meta-item span {
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  color: var(--red);
+}
+.about__meta-item strong {
+  font-family: var(--display);
+  font-size: 0.92rem;
+  font-weight: 800;
+  color: var(--ink);
+}
+.about__meta-item em {
+  font-style: normal;
+  font-size: 0.78rem;
+  color: var(--ink-dim);
+}
+
+/* Reel 3 Glass Spotlight Narrative Card */
+.about__intro-right {
+  display: flex;
+  flex-direction: column;
+}
+.about__spotlight-card {
+  --spot-x: 50%;
+  --spot-y: 35%;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 1.35rem;
+  padding: clamp(1.4rem, 2.8vw, 2.4rem);
+  border-radius: 24px;
+  background: radial-gradient(
+    600px circle at var(--spot-x) var(--spot-y),
+    rgba(255, 51, 34, 0.08),
+    rgba(13, 15, 22, 0.78) 55%,
+    rgba(8, 9, 14, 0.92) 100%
+  );
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  box-shadow: 0 30px 60px rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(16px);
+  transition: border-color 0.3s;
+}
+.about__spotlight-card:hover {
+  border-color: rgba(255, 51, 34, 0.3);
+}
+.about__lens-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+.about__lens-chip {
+  padding: 0.32rem 0.75rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: var(--ink-dim);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition: all 0.25s;
+}
+.about__lens-chip:hover,
+.about__lens-chip--active {
+  background: rgba(255, 51, 34, 0.16);
+  border-color: var(--red);
+  color: var(--ink);
+  transform: translateY(-1px);
+}
+.about__illuminated-copy {
+  margin: 0;
+  font-size: clamp(1.05rem, 1.45vw, 1.25rem);
+  line-height: 1.7;
+  color: rgba(245, 245, 247, 0.28);
+  user-select: none;
+}
+.about__word {
+  display: inline;
+  transition: color 0.22s, text-shadow 0.22s;
+}
+.about__word--lit {
+  color: var(--ink);
+}
+.about__word--accent {
+  color: #ffffff;
+  text-shadow: 0 0 16px rgba(255, 51, 34, 0.6);
+  font-weight: 600;
+}
+.about__spotlight-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+.about__foot-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--ink-faint);
+}
+.about__pulse-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--red);
+  animation: pulseGlow 1.8s infinite;
+}
+.about__foot-loc {
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--ink-dim);
+}
+
+/* 3D Hardware Constellation Stage Section */
+.about__stage-section {
+  display: grid;
+  grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.15fr);
+  gap: clamp(1.5rem, 3.5vw, 3.5rem);
+  align-items: start;
+  padding-top: 2rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+.about__rows-col {
+  display: flex;
+  flex-direction: column;
+  gap: 1.6rem;
+}
+.about__section-head {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+.about__section-title {
+  margin: 0;
+  font-family: var(--display);
+  font-weight: 800;
+  font-size: clamp(1.8rem, 3vw, 2.6rem);
+  letter-spacing: -0.02em;
+}
+
+.about__canvas-col {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  position: relative;
+}
+.about__canvas-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  z-index: 2;
+}
+.about__platform-Tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+.about-stage {
+  position: relative;
+  width: 100%;
+  height: clamp(540px, 64dvh, 720px);
+  background: radial-gradient(
+    ellipse at 50% 50%,
+    rgba(255, 51, 34, 0.07) 0%,
+    rgba(5, 5, 8, 0.4) 50%,
+    transparent 78%
+  );
+  overflow: visible;
+  touch-action: none;
+}
+.about-stage canvas {
+  width: 100% !important;
+  height: 100% !important;
+  outline: none;
+}
+.about-stage__fallback {
+  height: 480px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  padding: 2rem;
+}
+.about__canvas-caption {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 0.35rem;
+  padding: 0.35rem 1rem;
+}
+.about__caption-quote {
+  margin: 0;
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 1.05rem;
+  color: var(--ink);
+}
+.about__caption-sub {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: var(--ink-faint);
 }
 .journey__company {
   margin: 0 0 0.3rem;
@@ -866,9 +1194,17 @@ a {
     display: grid;
   }
   .about__top,
+  .about__hero,
+  .about__identity-grid,
+  .about__pillars,
+  .about__eco-grid,
   .caps__grid,
   .contact {
     grid-template-columns: 1fr;
+  }
+  .about__bp-layer {
+    grid-template-columns: 1fr;
+    gap: 0.35rem;
   }
   .caps__stage {
     position: relative;

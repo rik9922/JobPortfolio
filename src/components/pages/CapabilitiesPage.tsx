@@ -16,8 +16,17 @@ export const CapabilitiesPage: React.FC<{ reduced: boolean }> = ({ reduced }) =>
   const [finish, setFinish] = useState(MACBOOK_FINISHES[0]);
   const [zoomed, setZoomed] = useState(false);
   const [runPulse, setRunPulse] = useState(0);
+  const [isRunningRun, setIsRunningRun] = useState(false);
 
   const item = CAPABILITY_ITEMS[active];
+
+  const triggerWorkflowRun = () => {
+    setRunPulse((n) => n + 1);
+    setIsRunningRun(true);
+    window.setTimeout(() => {
+      setIsRunningRun(false);
+    }, 5300);
+  };
 
   const selectCapability = (idx: number) => {
     if (idx === active) return;
@@ -137,10 +146,10 @@ export const CapabilitiesPage: React.FC<{ reduced: boolean }> = ({ reduced }) =>
             <div className="caps__stage-controls">
               <button
                 type="button"
-                className="stage-btn"
-                onClick={() => setRunPulse((n) => n + 1)}
+                className={`stage-btn${isRunningRun ? ' stage-btn--active' : ''}`}
+                onClick={triggerWorkflowRun}
               >
-                ▶ Run Workflow
+                {isRunningRun ? '⚡ Running Step-by-Step...' : '▶ Run Workflow'}
               </button>
               <button
                 type="button"
@@ -166,7 +175,7 @@ export const CapabilitiesPage: React.FC<{ reduced: boolean }> = ({ reduced }) =>
               runPulse={runPulse}
               reduced={reduced}
               onSelectLens={setLensIndex}
-              onTriggerRun={() => setRunPulse((n) => n + 1)}
+              onTriggerRun={triggerWorkflowRun}
             />
           </div>
 

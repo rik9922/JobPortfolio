@@ -142,17 +142,19 @@ function drawLiveAutomationScreen(
   activeSkill: string | null,
   label: string,
   lenses: { id: string; label: string; caption: string }[],
-  userCursor: { x: number; y: number; inside: boolean }
+  userCursor: { x: number; y: number; inside: boolean },
+  isManualRun: boolean
 ) {
   const RED = '#ff3322';
   const GREEN = '#28c840';
   const CYAN = '#38bdf8';
   const AMBER = '#febc2e';
 
-  // 4-step automation cycle (0..4, 1.4s per step = 5.6s full loop)
+  // 4-step automation cycle (0..4, ~1.33s per step = 5.33s full loop)
   const cycle = (t * 0.75) % 4;
   const activeStep = Math.floor(cycle);
   const stepFrac = cycle - activeStep;
+  const totalProgress = cycle / 4; // 0..1 across all 4 steps
 
   // 1. Crisp Dark Studio Background
   ctx.fillStyle = '#07080c';
@@ -165,11 +167,16 @@ function drawLiveAutomationScreen(
 
   // 2. Top Browser / Automation Runner Bar (y: 48..122, height: 74px)
   rrect(ctx, BX, BY, BW, 74, 16);
-  ctx.fillStyle = '#12141d';
+  ctx.fillStyle = isManualRun ? '#19141d' : '#12141d';
   ctx.fill();
-  ctx.strokeStyle = 'rgba(255,255,255,0.15)';
-  ctx.lineWidth = 2;
+  ctx.strokeStyle = isManualRun ? RED : 'rgba(255,255,255,0.15)';
+  ctx.lineWidth = isManualRun ? 3 : 2;
   ctx.stroke();
+
+  // Live Workflow Progress Bar along bottom edge of Top Runner Bar
+  rrect(ctx, BX + 12, BY + 66, (BW - 24) * totalProgress, 5, 3);
+  ctx.fillStyle = isManualRun ? RED : GREEN;
+  ctx.fill();
 
   // macOS Traffic Lights
   ['#ff5f57', '#febc2e', '#28c840'].forEach((c, i) => {
@@ -934,16 +941,26 @@ function drawLiveAutomationScreen(
 
   // Bottom Status Strip inside safe bezel bounds (y: 924..986)
   rrect(ctx, BX, 924, BW, 62, 14);
-  ctx.fillStyle = '#12141e';
+  ctx.fillStyle = isManualRun ? 'rgba(255, 51, 34, 0.2)' : '#12141e';
   ctx.fill();
-  ctx.fillStyle = GREEN;
+  ctx.strokeStyle = isManualRun ? RED : 'rgba(255,255,255,0.08)';
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+
+  ctx.fillStyle = isManualRun ? RED : GREEN;
   ctx.font = '800 20px "Plus Jakarta Sans", sans-serif';
-  ctx.fillText('● LIVE 60FPS AUTOMATION ENGINE ACTIVE', BX + 24, 962);
+  ctx.fillText(
+    isManualRun
+      ? `⚡ EXECUTING WORKFLOW RUN · STEP ${activeStep + 1}/4 (${Math.round(totalProgress * 100)}%)`
+      : '● LIVE 60FPS AUTOMATION ENGINE ACTIVE',
+    BX + 24,
+    962
+  );
   ctx.save();
   ctx.textAlign = 'right';
-  ctx.fillStyle = '#a7a7b0';
+  ctx.fillStyle = '#d4d4dc';
   ctx.font = '700 18px "Plus Jakarta Sans", sans-serif';
-  ctx.fillText('CLICK MODE TABS ON SCREEN OR LEFT PANEL TO SWITCH WORKFLOW', BX + BW - 24, 962);
+  ctx.fillText('CLICK SCREEN TABS, TRACE STEPS, OR ▶ RUN WORKFLOW', BX + BW - 24, 962);
   ctx.restore();
 }
 
@@ -963,7 +980,8 @@ const RealMacBookGLTF: React.FC<LaptopStageProps> = ({
   const { nodes, materials, scene } = useGLTF('/macbook.glb', '/draco/') as unknown as MacbookGLTF;
   const group = useRef<THREE.Group>(null);
   const cursor = useRef<{ x: number; y: number; inside: boolean }>({ x: SW / 2, y: SH / 2, inside: false });
-  const timeOffset = useRef(0);
+  const simTime = useRef(0);
+  const manualRunTimer = useRef(0);
 
   const screenTex = useMemo(() => {
     const c = document.createElement('canvas');
@@ -991,25 +1009,38 @@ const RealMacBookGLTF: React.FC<LaptopStageProps> = ({
     });
   }, [finishColor, scene]);
 
+  // Reset workflow to Step 1 whenever capability or mode changes
+  useEffect(() => {
+    simTime.current = 0;
+  }, [index, lensIndex]);
+
+  // Restart workflow from Step 1 (0.00s) and highlight active run when ▶ Run Workflow is clicked
   useEffect(() => {
     if (runPulse > 0) {
-      timeOffset.current = performance.now() / 1000;
+      simTime.current = 0;
+      manualRunTimer.current = 5.33;
     }
   }, [runPulse]);
 
   useFrame((state, delta) => {
+    const clampedDelta = Math.min(delta, 0.1);
+    simTime.current += clampedDelta;
+    if (manualRunTimer.current > 0) {
+      manualRunTimer.current = Math.max(0, manualRunTimer.current - clampedDelta);
+    }
+
     const ctx = (screenTex.image as HTMLCanvasElement).getContext('2d');
     if (ctx) {
-      const elapsed = Math.max(0, state.clock.elapsedTime - timeOffset.current);
       drawLiveAutomationScreen(
         ctx,
-        elapsed,
+        simTime.current,
         index,
         lensIndex,
         activeSkill,
         label,
         lenses,
-        cursor.current
+        cursor.current,
+        manualRunTimer.current > 0
       );
       screenTex.needsUpdate = true;
     }
@@ -1023,11 +1054,11 @@ const RealMacBookGLTF: React.FC<LaptopStageProps> = ({
     const targetRotX = zoomed ? 0.04 - py * 0.02 : 0.09 - py * 0.05;
     const targetPosY = zoomed ? -1.16 : -0.78 + (reduced ? 0 : Math.sin(state.clock.elapsedTime * 0.85) * 0.02);
 
-    const curScale = THREE.MathUtils.damp(group.current.scale.x, targetScale, 4, delta);
+    const curScale = THREE.MathUtils.damp(group.current.scale.x, targetScale, 4, clampedDelta);
     group.current.scale.setScalar(curScale);
-    group.current.rotation.y = THREE.MathUtils.damp(group.current.rotation.y, targetRotY, 4, delta);
-    group.current.rotation.x = THREE.MathUtils.damp(group.current.rotation.x, targetRotX, 4, delta);
-    group.current.position.y = THREE.MathUtils.damp(group.current.position.y, targetPosY, 4, delta);
+    group.current.rotation.y = THREE.MathUtils.damp(group.current.rotation.y, targetRotY, 4, clampedDelta);
+    group.current.rotation.x = THREE.MathUtils.damp(group.current.rotation.x, targetRotX, 4, clampedDelta);
+    group.current.position.y = THREE.MathUtils.damp(group.current.position.y, targetPosY, 4, clampedDelta);
   });
 
   const handleScreenMove = (e: ThreeEvent<PointerEvent>) => {
@@ -1051,6 +1082,8 @@ const RealMacBookGLTF: React.FC<LaptopStageProps> = ({
     if (!e.uv) return;
     const x = e.uv.x * SW;
     const y = (1 - e.uv.y) * SH;
+
+    // 1. Check top-right mode tabs (01, 02, 03)
     for (let li = 0; li < lenses.length; li += 1) {
       const tx = 680 + li * 284;
       const ty = 61;
@@ -1059,6 +1092,20 @@ const RealMacBookGLTF: React.FC<LaptopStageProps> = ({
         return;
       }
     }
+
+    // 2. Check Right-Pane Step Cards (click any step 1..4 to jump directly to that step)
+    if (x >= 990 && x <= 1544) {
+      for (let si = 0; si < 4; si += 1) {
+        const syCard = 136 + 78 + si * 144;
+        if (y >= syCard && y <= syCard + 126) {
+          simTime.current = si / 0.75 + 0.05;
+          manualRunTimer.current = 5.33 - (si / 4) * 5.33;
+          return;
+        }
+      }
+    }
+
+    // 3. Clicking anywhere else on the screen restarts the 4-step workflow from Step 1
     onTriggerRun();
   };
 

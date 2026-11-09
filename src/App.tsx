@@ -1,166 +1,98 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import gsap from 'gsap';
-import { ScrollTrigger } from 'gsap/ScrollTrigger';
-import { CHAPTERS } from './data/portfolioData';
-import { CapabilityId, ChapterId } from './types/portfolio';
-import { IntroLoader } from './components/IntroLoader';
-import { Navbar } from './components/Navbar';
-import { VerificationCoreScene } from './components/canvas/VerificationCoreScene';
-import { HeroSection } from './components/sections/HeroSection';
-import { AboutSection } from './components/sections/AboutSection';
-import { CapabilitiesSection } from './components/sections/CapabilitiesSection';
-import { ExperienceSection } from './components/sections/ExperienceSection';
-import { ContactSection } from './components/sections/ContactSection';
+import { PAGES, PageId, isPageId } from './data/pages';
+import { Loader } from './components/Loader';
+import { Nav } from './components/Nav';
+import { HomePage } from './components/pages/HomePage';
+import { AboutPage } from './components/pages/AboutPage';
+import { CapabilitiesPage } from './components/pages/CapabilitiesPage';
+import { JourneyPage } from './components/pages/JourneyPage';
+import { PlayPage } from './components/pages/PlayPage';
+import { ContactPage } from './components/pages/ContactPage';
 
-gsap.registerPlugin(ScrollTrigger);
+const initialPage = (): PageId => {
+  const hash = window.location.hash.replace('#', '');
+  return isPageId(hash) ? hash : 'home';
+};
 
-export const App: React.FC = () => {
-  const [isLoaded, setIsLoaded] = useState<boolean>(false);
-  const [activeChapter, setActiveChapter] = useState<ChapterId>('introduction');
-  const [scrollProgress, setScrollProgress] = useState<number>(0);
-  const [activePlatformIndex, setActivePlatformIndex] = useState<number>(0);
-  const [activeCapabilityId, setActiveCapabilityId] =
-    useState<CapabilityId>('quality-engineering');
-  const [activeLensIndex, setActiveLensIndex] = useState<number>(0);
-  const [reducedMotion, setReducedMotion] = useState<boolean>(() => {
-    if (typeof window === 'undefined' || !window.matchMedia) return false;
-    return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  });
-
-  const mainRef = useRef<HTMLElement>(null);
+const App: React.FC = () => {
+  const [loaded, setLoaded] = useState(false);
+  const [page, setPage] = useState<PageId>(initialPage);
+  const [reduced, setReduced] = useState(
+    () => window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  );
+  const busy = useRef(false);
+  const curtain = useRef<HTMLDivElement>(null);
+  const curtainLabel = useRef<HTMLSpanElement>(null);
+  const pageRef = useRef(page);
+  pageRef.current = page;
 
   useEffect(() => {
-    if (typeof window === 'undefined' || !window.matchMedia) return;
     const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
-    const onChange = (e: MediaQueryListEvent) => setReducedMotion(e.matches);
+    const onChange = (e: MediaQueryListEvent) => setReduced(e.matches);
     mq.addEventListener('change', onChange);
     return () => mq.removeEventListener('change', onChange);
   }, []);
 
-  useEffect(() => {
-    const handleScroll = () => {
-      const y = window.scrollY;
-      const offsets = CHAPTERS.map((ch) => {
-        const el = document.getElementById(ch.id);
-        return el ? el.offsetTop : 0;
-      });
-      const n = offsets.length - 1;
-      if (n <= 0) {
-        setScrollProgress(0);
+  const handleLoaded = useCallback(() => setLoaded(true), []);
+
+  const navigate = useCallback(
+    (id: PageId) => {
+      if (busy.current || id === pageRef.current) return;
+      const swap = () => {
+        setPage(id);
+        window.history.replaceState(null, '', `#${id}`);
+        window.scrollTo(0, 0);
+      };
+      if (reduced || !curtain.current) {
+        swap();
         return;
       }
-      if (y <= offsets[0]) {
-        setScrollProgress(0);
-        return;
+      busy.current = true;
+      if (curtainLabel.current) {
+        curtainLabel.current.textContent = PAGES.find((p) => p.id === id)?.label ?? '';
       }
-      if (y >= offsets[n]) {
-        setScrollProgress(1);
-        return;
-      }
-      for (let i = 0; i < n; i++) {
-        if (y >= offsets[i] && y <= offsets[i + 1]) {
-          const span = Math.max(1, offsets[i + 1] - offsets[i]);
-          const local = (y - offsets[i]) / span;
-          setScrollProgress((i + local) / n);
-          return;
-        }
-      }
-    };
-
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    handleScroll();
-
-    const ctx = gsap.context(() => {
-      CHAPTERS.forEach((chapter) => {
-        const el = document.getElementById(chapter.id);
-        if (!el) return;
-
-        ScrollTrigger.create({
-          trigger: el,
-          start: 'top 55%',
-          end: 'bottom 45%',
-          onEnter: () => setActiveChapter(chapter.id),
-          onEnterBack: () => setActiveChapter(chapter.id),
-        });
-
-        if (!reducedMotion) {
-          gsap.fromTo(
-            el.querySelectorAll('.chapter-title, .hero-chapter__headline'),
-            { opacity: 0.15, y: 28 },
-            {
-              opacity: 1,
-              y: 0,
-              duration: 0.9,
-              ease: 'power3.out',
-              scrollTrigger: {
-                trigger: el,
-                start: 'top 80%',
-                toggleActions: 'play none none none',
-              },
-            }
-          );
-        }
-      });
-    }, mainRef);
-
-    return () => {
-      window.removeEventListener('scroll', handleScroll);
-      ctx.revert();
-    };
-  }, [reducedMotion]);
-
-  const handleNavigate = useCallback(
-    (id: ChapterId) => {
-      setActiveChapter(id);
-      const el = document.getElementById(id);
-      if (el) {
-        el.scrollIntoView({ behavior: reducedMotion ? 'auto' : 'smooth' });
-      }
+      gsap
+        .timeline({
+          onComplete: () => {
+            busy.current = false;
+          },
+        })
+        .set(curtain.current, { yPercent: 100, display: 'flex' })
+        .to(curtain.current, { yPercent: 0, duration: 0.65, ease: 'power4.inOut' })
+        .call(swap)
+        .to({}, { duration: 0.2 })
+        .to(curtain.current, { yPercent: -100, duration: 0.65, ease: 'power4.inOut' })
+        .set(curtain.current, { display: 'none' });
     },
-    [reducedMotion]
+    [reduced]
   );
 
   return (
-    <div className="atelier-app">
-      <a href="#main-content" className="skip-link">
+    <div className="app">
+      <a href="#main" className="skip-link">
         Skip to content
       </a>
 
-      {!isLoaded && <IntroLoader onComplete={() => setIsLoaded(true)} />}
+      {!loaded && <Loader onComplete={handleLoaded} />}
 
-      {/* Full-Screen Sculptural 3D World */}
-      <VerificationCoreScene
-        activeChapter={activeChapter}
-        scrollProgress={scrollProgress}
-        activePlatformIndex={activePlatformIndex}
-        activeCapabilityId={activeCapabilityId}
-        activeLensIndex={activeLensIndex}
-        reducedMotion={reducedMotion}
-      />
+      {loaded && (
+        <>
+          <Nav active={page} onNavigate={navigate} />
+          <main id="main" key={page} className="stage">
+            {page === 'home' && <HomePage reduced={reduced} />}
+            {page === 'about' && <AboutPage />}
+            {page === 'capabilities' && <CapabilitiesPage reduced={reduced} />}
+            {page === 'journey' && <JourneyPage />}
+            {page === 'play' && <PlayPage reduced={reduced} />}
+            {page === 'contact' && <ContactPage reduced={reduced} />}
+          </main>
+        </>
+      )}
 
-      {/* Minimal Floating Navigation */}
-      <Navbar activeChapter={activeChapter} onNavigate={handleNavigate} />
-
-      {/* Five Spatial Storytelling Chapters */}
-      <main id="main-content" ref={mainRef} className="atelier-main">
-        <HeroSection onNavigate={handleNavigate} />
-
-        <AboutSection
-          activePlatformIndex={activePlatformIndex}
-          onSelectPlatform={setActivePlatformIndex}
-        />
-
-        <CapabilitiesSection
-          activeCapabilityId={activeCapabilityId}
-          onSelectCapability={setActiveCapabilityId}
-          activeLensIndex={activeLensIndex}
-          onSelectLens={setActiveLensIndex}
-        />
-
-        <ExperienceSection />
-
-        <ContactSection />
-      </main>
+      <div ref={curtain} className="curtain" aria-hidden="true">
+        <span ref={curtainLabel} />
+      </div>
     </div>
   );
 };

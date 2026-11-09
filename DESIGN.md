@@ -1,64 +1,26 @@
-# Design System & Creative Direction: Ritik Thakre — Sculptural 3D Portfolio
+# Design System — Ritik Thakre 3D & WebGL Portfolio
 
-## 1. Creative Vision & Art Direction
-**Concept**: *Luminous Architecture of Quality, Automation & AI*
+## 1. Visual Identity & Aesthetic Philosophy
+- **Stage**: Pitch-black obsidian (`#050505`) with a warm crimson radial vignette on the hero stage (`#1c0705` → `#000000`).
+- **Single Signature Accent**: Electric Crimson (`#ff3322`), paired with multi-stop metallic chrome display typography (`linear-gradient(180deg, #ffffff 0%, #cfd2d8 38%, #6c7078 52%, #d9dce1 74%, #ffffff 100%)`).
+- **Floating Skill Accents (`Home`)**:
+  - Crimson (`#ff5545`)
+  - Cobalt (`#5aa2ff`)
+  - Emerald (`#46d68a`)
+  - Amber (`#ffb43a`)
 
-Moving completely away from technical monitoring dashboards, telemetry HUDs, and boxed control consoles, this portfolio is conceived as an **Awwwards-caliber sculptural 3D spatial journey**. Visitors travel through five distinct, studio-lit 3D architectural installations that visually express Ritik Thakre's craft across **Quality Engineering**, **Test Automation**, and **AI-Assisted Software Development**.
+## 2. Typography
+- **Display (`--display`)**: `'Syne'`, weight `800`, tight tracking (`-0.04em` to `-0.045em`), used for the giant full-bleed hero name (`RITIK THAKRE`), chapter titles (`About`, `What I can do`, `Journey`, `Let's talk.`), and numbered row headers.
+- **Editorial Serif (`--serif`)**: `'Instrument Serif'`, italic/regular, used for philosophical pull quotes, role subtitles, and stage captions.
+- **UI & Body (`--sans`)**: `'Plus Jakarta Sans'`, weights `500`–`700`, used for navigation, capability descriptions, and technical skill chips.
 
-- **Atmosphere**: Cinematic gallery space with studio-lit refractive glass, brushed champagne titanium, warm alabaster typography, and volumetric depth.
-- **Spatial Storytelling**: Five distinct 3D environments arranged in world space (`Chapter I` through `Chapter V`), connected by smooth GSAP `ScrollTrigger` camera choreography and interactive 3D capability dioramas.
-- **Restraint & Clarity**: Generous open viewport space around the 3D sculptures, whisper-quiet minimal navigation, concise editorial prose, and zero dashboard clutter.
-
----
-
-## 2. Color Calibration (Warm Nocturne Studio Palette)
-
-| Token | Hex / Value | Role |
-| :--- | :--- | :--- |
-| **Velvet Nocturne** | `#07070A` | Deep studio backdrop canvas |
-| **Obsidian Gallery** | `#0D0E13` | Secondary atmospheric depth |
-| **Translucent Atelier** | `rgba(16, 17, 23, 0.58)` | Whisper-light floating glass surfaces (`backdrop-filter: blur(20px)`) |
-| **Warm Alabaster** | `#F5F2EB` | Primary display headlines & sculptural highlights |
-| **Brushed Champagne** | `#D6C7B2` | Editorial subheadings & warm metallic accents |
-| **Soft Stone** | `#9E9A93` | Concise body copy & narrative descriptions |
-| **Cinnabar Ember** | `#E85D3F` | Primary interactive accent & warm studio rim light |
-| **Glacial Mint** | `#6EE7B7` | Secondary refractive light accent |
-| **Subtle Hairline** | `rgba(245, 242, 235, 0.08)` | Delicate architectural dividers |
-
----
-
-## 3. Typography & Hierarchy
-- **Monumental Display (`--font-display`)**: `'Syne'`, sans-serif — bold, sculptural geometric display type for hero statements and chapter titles.
-- **Editorial Accent (`--font-serif`)**: `'Instrument Serif'`, serif (italic) — adds human warmth and artistic contrast to key phrases.
-- **Clean Narrative (`--font-sans`)**: `'Plus Jakarta Sans'`, sans-serif — high-legibility, concise prose for capability storytelling and career history.
-
----
-
-## 4. Five-Chapter Spatial Structure & 3D Installations
-
-1. **Chapter I — Introduction (`#introduction`)**:
-   - **3D Scene**: *The Kinetic Prism Monolith* — interlocking refractive glass and brushed metal monoliths with a flowing custom GLSL light ribbon, suspended under studio `Lightformer` reflections.
-   - **Viewport Experience**: Uncluttered full-screen 3D hero showcasing `RITIK THAKRE`, `QA ENGINEER · TEST AUTOMATION · AI-ASSISTED SOFTWARE DEVELOPMENT`, and `I EXPLORE. I AUTOMATE. I ENGINEER.` with direct Resume and LinkedIn actions.
-2. **Chapter II — About & Engineering Philosophy (`#philosophy`)**:
-   - **3D Scene**: *The Multi-Platform Optical Strata* — four suspended translucent architectural planes (`Web`, `PWA`, `Android`, `iOS`) traversed by a dynamic inspection lens.
-   - **Interactive Storytelling**: Visitors explore how independent application exploration maps positive, negative, boundary, and alternative user flows across platforms.
-3. **Chapter III — Technical Capabilities (`#capabilities`)**:
-   - **3D Scene**: *Six Interactive 3D Sculptural Dioramas* — the 3D stage dynamically morphs into six custom interactive 3D visualizations:
-     - *Quality Engineering*: 3D Behavioural Prism
-     - *Test Automation*: 3D Layered Browser & Page Object Architecture
-     - *API & Data Validation*: 3D Request–Response & SQL Crystal Conduit
-     - *Software Development*: 3D Full-Stack Architectural Strata
-     - *AI-Assisted Development*: 3D Human–Agent Symbiosis Sculpture
-     - *QA Processes*: 3D Quality Lifecycle Continuum
-4. **Chapter IV — Professional Journey & Education (`#journey`)**:
-   - **3D Scene**: *The Chronos Arch & Academic Monolith* — rising sculptural arches framing Ritik's role as **Jr. QA Engineer at SKYESTONE AI TECH PRIVATE LIMITED** (`08 April 2026 – Present`) and his **B.Tech in Artificial Intelligence & Data Science** (`Priyadarshini Engineering College, Nagpur`, `2021–2024`, `CGPA: 7.30 / 10`).
-5. **Chapter V — Contact (`#contact`)**:
-   - **3D Scene**: *The Horizon Beacon* — a serene, luminous sculptural ring inviting direct collaboration via email, phone, and LinkedIn.
-
----
-
-## 5. Content & Privacy Principles
-- Grounded strictly in Ritik Thakre's approved resume.
-- Zero confidential project names, client names, internal endpoints, database schemas, or synthetic project-shaped code/SQL examples.
-- Zero fabricated performance metrics or unsupported absolute claims.
-- Conceptual 3D visualizations are clearly presented as interactive conceptual representations of technical disciplines.
+## 3. Interactive 3D & Canvas Modules
+1. **`src/components/canvas/PortraitParticles.tsx`**:
+   - Samples `/ritik-cutout.png` on a `220×220` grid into custom GLSL points (`VERTEX` & `FRAGMENT` shaders).
+   - Animates `uAssemble` from scattered 3D coordinates into the portrait and applies a velocity-sensitive pointer ripple (`uMouse`, `uRepel`).
+2. **`src/components/canvas/LaptopStage.tsx`**:
+   - Renders an anodized Space-Silver 3D MacBook (`RoundedBox` unibody chassis, backlit keyboard texture, studio `Lightformer` lighting) whose `THREE.CanvasTexture` screen updates dynamically when selecting any of the 6 capability rows.
+3. **`src/components/canvas/BadgeScene.tsx`**:
+   - Simulates a 2D rope-constrained pendulum in 3D space (`ANCHOR`, `ROPE`) with pointer capture dragging, viewport edge bounce guards, and click-to-flip `180°` Y-axis rotation showing front/back `THREE.CanvasTexture` faces.
+4. **`src/components/pages/PlayPage.tsx`**:
+   - Renders `TEST. BREAK. SHIP.` into an offscreen canvas and spawns interactive spring-physics pixel blocks that repel on pointer hover and shatter outward on click.

@@ -86,6 +86,9 @@ const LENS_FILTERS: { id: 'all' | 'explore' | 'automate' | 'fullstack' | 'ai'; l
 
 export const AboutPage: React.FC<AboutPageProps> = ({ reduced = false, onNavigate }) => {
   const [activePlatform, setActivePlatform] = useState(0);
+  const [activeScreen, setActiveScreen] = useState(0);
+  const [viewAngle, setViewAngle] = useState<'front' | 'side' | 'back' | 'free'>('front');
+  const [autoSpin, setAutoSpin] = useState(false);
   const [xrayFlipped, setXrayFlipped] = useState(false);
   const [activeLens, setActiveLens] = useState<'all' | 'explore' | 'automate' | 'fullstack' | 'ai'>('all');
   const [readProgress, setReadProgress] = useState(0.76);
@@ -309,17 +312,93 @@ export const AboutPage: React.FC<AboutPageProps> = ({ reduced = false, onNavigat
                   role="tab"
                   aria-selected={activePlatform === idx}
                   className={`stage-btn${activePlatform === idx ? ' stage-btn--active' : ''}`}
-                  onClick={() => setActivePlatform(idx)}
+                  onClick={() => {
+                    setActivePlatform(idx);
+                    setViewAngle('front');
+                  }}
                 >
                   0{idx + 1} · {p.title.split(' ')[0]}
                 </button>
               ))}
             </div>
+
+            {/* Screen Selector for the Active Device */}
+            <div className="about__screen-tabs" role="tablist" aria-label="Device Screens">
+              <span className="about__screen-label">SCREEN:</span>
+              {['01 · Dashboard', '02 · Automation', '03 · API & Data'].map((s, idx) => (
+                <button
+                  key={s}
+                  type="button"
+                  role="tab"
+                  aria-selected={activeScreen === idx}
+                  className={`stage-btn stage-btn--sm${activeScreen === idx ? ' stage-btn--active' : ''}`}
+                  onClick={() => setActiveScreen(idx)}
+                >
+                  {s}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* 360° Hardware Inspection Toolbar (Inspect Front, Rails, Backside & Cameras) */}
+          <div className="about__inspect-toolbar">
+            <span className="about__inspect-label">360° INSPECT:</span>
+            <div className="about__inspect-btns">
+              <button
+                type="button"
+                className={`stage-btn stage-btn--sm${viewAngle === 'front' ? ' stage-btn--active' : ''}`}
+                onClick={() => {
+                  setAutoSpin(false);
+                  setViewAngle('front');
+                }}
+              >
+                📱 Front Screen
+              </button>
+              <button
+                type="button"
+                className={`stage-btn stage-btn--sm${viewAngle === 'side' ? ' stage-btn--active' : ''}`}
+                onClick={() => {
+                  setAutoSpin(false);
+                  setViewAngle('side');
+                }}
+              >
+                📐 Side Profile & Rails
+              </button>
+              <button
+                type="button"
+                className={`stage-btn stage-btn--sm${viewAngle === 'back' ? ' stage-btn--active' : ''}`}
+                onClick={() => {
+                  setAutoSpin(false);
+                  setViewAngle('back');
+                }}
+              >
+                🔍 Backside & Cameras (180°)
+              </button>
+              <button
+                type="button"
+                className={`stage-btn stage-btn--sm${autoSpin ? ' stage-btn--active' : ''}`}
+                onClick={() => {
+                  setAutoSpin(!autoSpin);
+                  setViewAngle('free');
+                }}
+              >
+                {autoSpin ? '⏸ Pause Spin' : '🔄 360° Auto-Spin'}
+              </button>
+            </div>
           </div>
 
           <AboutStage
             activePlatform={activePlatform}
-            onSelectPlatform={(idx) => setActivePlatform(idx)}
+            onSelectPlatform={(idx) => {
+              setActivePlatform(idx);
+              setViewAngle('front');
+            }}
+            activeScreen={activeScreen}
+            onSelectScreen={(s) => setActiveScreen(s)}
+            viewAngle={viewAngle}
+            onSelectViewAngle={(a) => setViewAngle(a)}
+            autoSpin={autoSpin}
+            onToggleAutoSpin={() => setAutoSpin(!autoSpin)}
             xrayFlipped={false}
             reduced={reduced}
           />
@@ -327,7 +406,7 @@ export const AboutPage: React.FC<AboutPageProps> = ({ reduced = false, onNavigat
           <div className="about__canvas-caption">
             <p className="about__caption-quote">{currentPlatform.subtitle}</p>
             <span className="about__caption-sub">
-              REAL HARDWARE CHASSIS (WEB MONITOR, PWA TABLET, ANDROID, iOS) · DRAG TO TILT · CLICK TO SWITCH
+              REAL HARDWARE CHASSIS (WEB MONITOR, PWA TABLET, GALAXY S24 ULTRA, iPHONE 15 PRO) · 360° DRAG TO INSPECT ALL CORNERS & BACKSIDE · CLICK SCREEN TO ADVANCE
             </span>
           </div>
         </div>

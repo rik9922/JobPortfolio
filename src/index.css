@@ -1044,10 +1044,45 @@ a {
   cursor: pointer;
   transition: border-color 0.2s, background 0.2s;
 }
+.stage-btn--sm {
+  padding: 0.24rem 0.62rem;
+  font-size: 0.68rem;
+}
 .stage-btn:hover,
 .stage-btn--active {
   border-color: var(--red);
   background: rgba(255, 51, 34, 0.18);
+}
+.about__screen-tabs {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+.about__screen-label,
+.about__inspect-label {
+  font-size: 0.64rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: var(--ink-faint);
+  margin-right: 0.15rem;
+}
+.about__inspect-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin-top: 0.45rem;
+  padding: 0.35rem 0.6rem;
+  border-radius: 8px;
+  background: rgba(12, 12, 16, 0.45);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+.about__inspect-btns {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
 }
 .caps__canvas-wrap {
   flex: 1;

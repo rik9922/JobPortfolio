@@ -13,6 +13,12 @@ import {
 export interface AboutStageProps {
   activePlatform: number; // 0: Web, 1: PWA, 2: Android, 3: iOS
   onSelectPlatform?: (index: number) => void;
+  activeScreen?: number; // 0, 1, 2
+  onSelectScreen?: (index: number) => void;
+  viewAngle?: 'front' | 'side' | 'back' | 'free';
+  onSelectViewAngle?: (angle: 'front' | 'side' | 'back' | 'free') => void;
+  autoSpin?: boolean;
+  onToggleAutoSpin?: () => void;
   xrayFlipped?: boolean;
   onToggleXray?: () => void;
   reduced?: boolean;
@@ -71,6 +77,8 @@ interface DeviceItem3DProps {
   spec: PlatformHardwareSpec;
   index: number;
   activePlatform: number;
+  activeScreen: number;
+  onCycleScreen: () => void;
   onSelect: (index: number) => void;
   reduced: boolean;
 }
@@ -79,6 +87,8 @@ const DeviceItem3D: React.FC<DeviceItem3DProps> = ({
   spec,
   index,
   activePlatform,
+  activeScreen,
+  onCycleScreen,
   onSelect,
   reduced,
 }) => {
@@ -92,10 +102,10 @@ const DeviceItem3D: React.FC<DeviceItem3DProps> = ({
     c.height = spec.texH;
     const ctx = c.getContext('2d');
     if (ctx) {
-      if (spec.formFactor === 'web') paintRealWebScreen(ctx, 0);
-      else if (spec.formFactor === 'pwa') paintRealPwaScreen(ctx, 0);
-      else if (spec.formFactor === 'android') paintRealAndroidScreen(ctx, 0);
-      else paintRealIosScreen(ctx, 0);
+      if (spec.formFactor === 'web') paintRealWebScreen(ctx, 0, activeScreen);
+      else if (spec.formFactor === 'pwa') paintRealPwaScreen(ctx, 0, activeScreen);
+      else if (spec.formFactor === 'android') paintRealAndroidScreen(ctx, 0, activeScreen);
+      else paintRealIosScreen(ctx, 0, activeScreen);
     }
 
     const t = new THREE.CanvasTexture(c);
@@ -106,7 +116,7 @@ const DeviceItem3D: React.FC<DeviceItem3DProps> = ({
     t.anisotropy = Math.min(16, gl.capabilities.getMaxAnisotropy());
     t.needsUpdate = true;
     return { canvas: c, tex: t };
-  }, [spec, gl]);
+  }, [spec, gl, activeScreen]);
 
   useEffect(() => {
     return () => {
@@ -128,10 +138,10 @@ const DeviceItem3D: React.FC<DeviceItem3DProps> = ({
       lastPaintRef.current = t;
       const ctx = canvas.getContext('2d');
       if (ctx) {
-        if (spec.formFactor === 'web') paintRealWebScreen(ctx, t);
-        else if (spec.formFactor === 'pwa') paintRealPwaScreen(ctx, t);
-        else if (spec.formFactor === 'android') paintRealAndroidScreen(ctx, t);
-        else paintRealIosScreen(ctx, t);
+        if (spec.formFactor === 'web') paintRealWebScreen(ctx, t, activeScreen);
+        else if (spec.formFactor === 'pwa') paintRealPwaScreen(ctx, t, activeScreen);
+        else if (spec.formFactor === 'android') paintRealAndroidScreen(ctx, t, activeScreen);
+        else paintRealIosScreen(ctx, t, activeScreen);
         tex.needsUpdate = true;
       }
     }
@@ -146,16 +156,15 @@ const DeviceItem3D: React.FC<DeviceItem3DProps> = ({
     let targetScale = 1;
 
     if (rel === 0) {
-      // Hero center - scale calibrated by form factor so mobile devices never clip top or bottom
+      // Hero center
       targetX = 0;
       targetY = reduced ? 0 : Math.sin(t * 1.5) * 0.04;
       targetZ = 0.9;
       targetRotY = reduced ? 0 : Math.sin(t * 0.6) * 0.05;
       targetRotX = reduced ? 0 : Math.cos(t * 0.8) * 0.02;
-      // Web & PWA fit well at 0.95; Android & iOS fit without edge clipping at 0.88
       targetScale = spec.formFactor === 'android' || spec.formFactor === 'ios' ? 0.88 : 0.96;
     } else if (rel === 1) {
-      // Right orbital slot - pushed out with clear perspective separation
+      // Right orbital slot
       targetX = 2.65;
       targetY = 0.15 + (reduced ? 0 : Math.sin(t * 1.2 + 1) * 0.03);
       targetZ = -1.45;
@@ -171,7 +180,7 @@ const DeviceItem3D: React.FC<DeviceItem3DProps> = ({
       targetRotX = 0.14;
       targetScale = 0.46;
     } else {
-      // Left orbital slot - pushed out with clear perspective separation
+      // Left orbital slot
       targetX = -2.65;
       targetY = -0.15 + (reduced ? 0 : Math.sin(t * 1.3 + 3) * 0.03);
       targetZ = -1.45;
@@ -197,7 +206,11 @@ const DeviceItem3D: React.FC<DeviceItem3DProps> = ({
       ref={groupRef}
       onClick={(e) => {
         e.stopPropagation();
-        onSelect(index);
+        if (isActive) {
+          onCycleScreen();
+        } else {
+          onSelect(index);
+        }
       }}
       onPointerOver={() => {
         document.body.style.cursor = 'grab';
@@ -219,12 +232,20 @@ const DeviceItem3D: React.FC<DeviceItem3DProps> = ({
 interface HardwareSceneProps {
   activePlatform: number;
   onSelectPlatform: (idx: number) => void;
+  activeScreen: number;
+  onCycleScreen: () => void;
+  viewAngle: 'front' | 'side' | 'back' | 'free';
+  autoSpin: boolean;
   reduced: boolean;
 }
 
 const HardwareScene: React.FC<HardwareSceneProps> = ({
   activePlatform,
   onSelectPlatform,
+  activeScreen,
+  onCycleScreen,
+  viewAngle,
+  autoSpin,
   reduced,
 }) => {
   const rigRef = useRef<THREE.Group>(null);
@@ -235,23 +256,32 @@ const HardwareScene: React.FC<HardwareSceneProps> = ({
   useFrame((state, delta) => {
     const rig = rigRef.current;
     if (!rig) return;
-    const px = state.pointer.x * 0.22;
-    const py = state.pointer.y * 0.14;
 
-    if (!draggingRef.current) {
-      userRotRef.current.x = THREE.MathUtils.lerp(userRotRef.current.x, 0, Math.min(1, delta * 2.5));
-      userRotRef.current.y = THREE.MathUtils.lerp(userRotRef.current.y, 0, Math.min(1, delta * 2.5));
+    if (autoSpin && !draggingRef.current) {
+      userRotRef.current.y += delta * 0.55;
+    } else if (!draggingRef.current) {
+      if (viewAngle === 'front') {
+        userRotRef.current.y = THREE.MathUtils.lerp(userRotRef.current.y, 0, Math.min(1, delta * 6));
+        userRotRef.current.x = THREE.MathUtils.lerp(userRotRef.current.x, 0, Math.min(1, delta * 6));
+      } else if (viewAngle === 'side') {
+        userRotRef.current.y = THREE.MathUtils.lerp(userRotRef.current.y, Math.PI / 2, Math.min(1, delta * 6));
+      } else if (viewAngle === 'back') {
+        userRotRef.current.y = THREE.MathUtils.lerp(userRotRef.current.y, Math.PI, Math.min(1, delta * 6));
+      }
     }
+
+    const px = state.pointer.x * 0.08;
+    const py = state.pointer.y * 0.05;
 
     rig.rotation.y = THREE.MathUtils.lerp(
       rig.rotation.y,
-      px + userRotRef.current.y,
-      Math.min(1, delta * 6)
+      userRotRef.current.y + px,
+      Math.min(1, delta * 8)
     );
     rig.rotation.x = THREE.MathUtils.lerp(
       rig.rotation.x,
-      -py * 0.5 + userRotRef.current.x,
-      Math.min(1, delta * 6)
+      userRotRef.current.x - py,
+      Math.min(1, delta * 8)
     );
   });
 
@@ -264,11 +294,16 @@ const HardwareScene: React.FC<HardwareSceneProps> = ({
       }}
       onPointerMove={(e) => {
         if (!draggingRef.current) return;
-        const dx = (e.clientX - dragStartRef.current.x) * 0.007;
-        const dy = (e.clientY - dragStartRef.current.y) * 0.005;
+        const dx = (e.clientX - dragStartRef.current.x) * 0.009;
+        const dy = (e.clientY - dragStartRef.current.y) * 0.007;
         dragStartRef.current = { x: e.clientX, y: e.clientY };
-        userRotRef.current.y = THREE.MathUtils.clamp(userRotRef.current.y + dx, -0.95, 0.95);
-        userRotRef.current.x = THREE.MathUtils.clamp(userRotRef.current.x + dy, -0.45, 0.45);
+        // Unconstrained full 360-degree rotation along Y
+        userRotRef.current.y += dx;
+        userRotRef.current.x = THREE.MathUtils.clamp(
+          userRotRef.current.x + dy,
+          -Math.PI / 3,
+          Math.PI / 3
+        );
       }}
       onPointerUp={() => {
         draggingRef.current = false;
@@ -283,6 +318,8 @@ const HardwareScene: React.FC<HardwareSceneProps> = ({
           spec={spec}
           index={idx}
           activePlatform={activePlatform}
+          activeScreen={activeScreen}
+          onCycleScreen={onCycleScreen}
           onSelect={onSelectPlatform}
           reduced={reduced}
         />
@@ -294,6 +331,10 @@ const HardwareScene: React.FC<HardwareSceneProps> = ({
 export const AboutStage: React.FC<AboutStageProps> = ({
   activePlatform,
   onSelectPlatform,
+  activeScreen = 0,
+  onSelectScreen,
+  viewAngle = 'free',
+  autoSpin = false,
   reduced = false,
 }) => {
   const [webglReady, setWebglReady] = useState(true);
@@ -308,6 +349,12 @@ export const AboutStage: React.FC<AboutStageProps> = ({
     );
   }
 
+  const handleCycleScreen = () => {
+    if (onSelectScreen) {
+      onSelectScreen((activeScreen + 1) % 3);
+    }
+  };
+
   return (
     <div className="about-stage" aria-label="Interactive Real 3D Hardware Devices Stage">
       <Canvas
@@ -319,27 +366,33 @@ export const AboutStage: React.FC<AboutStageProps> = ({
         }}
         onError={() => setWebglReady(false)}
       >
-        <ambientLight intensity={0.8} />
+        <ambientLight intensity={0.9} />
+        {/* Front key lighting */}
         <directionalLight position={[4, 6, 5]} intensity={1.8} />
-        <directionalLight position={[-4, -2, 3]} intensity={0.7} color="#ff3322" />
+        <directionalLight position={[-4, -2, 3]} intensity={0.8} color="#ff3322" />
+
+        {/* Rear studio lighting for Backside & Camera Inspection */}
+        <directionalLight position={[0, 5, -6]} intensity={2.2} color="#ffffff" />
+        <directionalLight position={[-4, 2, -5]} intensity={1.4} color="#38bdf8" />
 
         <Environment resolution={256}>
           <group rotation={[-Math.PI / 4, -0.3, 0]}>
-            <Lightformer intensity={3.5} rotation-x={Math.PI / 2} position={[0, 4, -2]} scale={[8, 2, 1]} />
-            <Lightformer intensity={2} rotation-y={Math.PI / 2} position={[-5, 1, -1]} scale={[6, 2, 1]} />
-            <Lightformer
-              intensity={2.4}
-              rotation-y={-Math.PI / 2}
-              position={[6, 1, 1]}
-              scale={[6, 2, 1]}
-              color="#ff5533"
-            />
+            {/* Front Lightformers */}
+            <Lightformer intensity={3.5} rotation-x={Math.PI / 2} position={[0, 4, 3]} scale={[8, 2, 1]} />
+            <Lightformer intensity={2} rotation-y={Math.PI / 2} position={[-5, 1, 1]} scale={[6, 2, 1]} />
+            {/* Rear Lightformers for Backside & Lens Reflections */}
+            <Lightformer intensity={3.0} rotation-x={-Math.PI / 2} position={[0, 4, -4]} scale={[8, 2, 1]} color="#ffffff" />
+            <Lightformer intensity={2.2} rotation-y={-Math.PI / 2} position={[5, 1, -3]} scale={[6, 2, 1]} color="#38bdf8" />
           </group>
         </Environment>
 
         <HardwareScene
           activePlatform={activePlatform}
           onSelectPlatform={(idx) => onSelectPlatform?.(idx)}
+          activeScreen={activeScreen}
+          onCycleScreen={handleCycleScreen}
+          viewAngle={viewAngle}
+          autoSpin={autoSpin}
           reduced={reduced}
         />
 

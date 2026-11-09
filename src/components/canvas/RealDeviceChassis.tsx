@@ -13,7 +13,6 @@ export interface DeviceChassisProps {
 export const RealDeviceChassis: React.FC<DeviceChassisProps> = ({
   formFactor,
   screenTexture,
-  accent,
   isHero,
 }) => {
   if (formFactor === 'ios') {
@@ -144,14 +143,14 @@ export const RealDeviceChassis: React.FC<DeviceChassisProps> = ({
   }
 
   // Android: Samsung Galaxy S24 Ultra Flagship Smartphone
-  // Distinctive sharp rectangular corners, titanium rails, floating triple camera lenses
+  // Distinctive sharp rectangular corners, titanium rails, floating 5-camera array
   const W = 1.32;
   const H = 2.68;
   const D = 0.082;
   return (
     <group>
-      {/* Titanium Armor Unibody Chassis with S24 Ultra Sharp Profile */}
-      <RoundedBox args={[W, H, D]} radius={0.045} smoothness={5}>
+      {/* 1. Titanium Armor Unibody Chassis with S24 Ultra Sharp Profile */}
+      <RoundedBox args={[W, H, D]} radius={0.035} smoothness={5}>
         <meshPhysicalMaterial
           color={isHero ? '#1e2225' : '#121518'}
           metalness={0.96}
@@ -161,27 +160,94 @@ export const RealDeviceChassis: React.FC<DeviceChassisProps> = ({
         />
       </RoundedBox>
 
-      {/* Titanium Side Buttons on Right Rail */}
-      <group position={[W / 2 + 0.006, 0.32, 0]}>
+      {/* 2. Antenna Bands (Polymer cuts on top, bottom, and side rails) */}
+      {/* Top Antenna Bands */}
+      <mesh position={[-0.38, H / 2 + 0.001, 0]}>
+        <boxGeometry args={[0.012, 0.004, D]} />
+        <meshBasicMaterial color="#0d1114" />
+      </mesh>
+      <mesh position={[0.38, H / 2 + 0.001, 0]}>
+        <boxGeometry args={[0.012, 0.004, D]} />
+        <meshBasicMaterial color="#0d1114" />
+      </mesh>
+      {/* Bottom Antenna Bands */}
+      <mesh position={[-0.38, -H / 2 - 0.001, 0]}>
+        <boxGeometry args={[0.012, 0.004, D]} />
+        <meshBasicMaterial color="#0d1114" />
+      </mesh>
+      <mesh position={[0.38, -H / 2 - 0.001, 0]}>
+        <boxGeometry args={[0.012, 0.004, D]} />
+        <meshBasicMaterial color="#0d1114" />
+      </mesh>
+
+      {/* 3. Titanium Side Buttons on Right Rail */}
+      <group position={[W / 2 + 0.005, 0.32, 0]}>
         {/* Long Volume Rocker */}
         <mesh position={[0, 0.22, 0]}>
-          <boxGeometry args={[0.01, 0.28, 0.032]} />
-          <meshPhysicalMaterial color="#262f2c" metalness={0.95} roughness={0.15} />
+          <boxGeometry args={[0.012, 0.28, 0.032]} />
+          <meshPhysicalMaterial color="#2c3632" metalness={0.96} roughness={0.15} />
         </mesh>
         {/* Power / Lock Key */}
         <mesh position={[0, -0.08, 0]}>
-          <boxGeometry args={[0.01, 0.16, 0.032]} />
-          <meshPhysicalMaterial color="#262f2c" metalness={0.95} roughness={0.15} />
+          <boxGeometry args={[0.012, 0.16, 0.032]} />
+          <meshPhysicalMaterial color="#2c3632" metalness={0.96} roughness={0.15} />
         </mesh>
       </group>
 
-      {/* Top Earpiece Speaker Micro-Slit */}
+      {/* 4. Bottom Rail Features: S-Pen Stylus + USB-C + Speaker Grille */}
+      <group position={[0, -H / 2 - 0.002, 0]}>
+        {/* S-Pen Stylus Clickable Titanium End Cap (Bottom Left) */}
+        <mesh position={[-W / 2 + 0.12, 0, 0]}>
+          <boxGeometry args={[0.07, 0.008, 0.04]} />
+          <meshPhysicalMaterial color="#26302c" metalness={0.96} roughness={0.18} />
+        </mesh>
+        <mesh position={[-W / 2 + 0.12, -0.003, 0]}>
+          <circleGeometry args={[0.015, 12]} />
+          <meshBasicMaterial color="#0a0d0c" />
+        </mesh>
+
+        {/* USB-C Port with Center Connector Blade */}
+        <mesh position={[0, 0, 0]}>
+          <boxGeometry args={[0.13, 0.006, 0.038]} />
+          <meshBasicMaterial color="#060809" />
+        </mesh>
+        <mesh position={[0, -0.001, 0]}>
+          <boxGeometry args={[0.08, 0.003, 0.012]} />
+          <meshPhysicalMaterial color="#d4af37" metalness={0.9} roughness={0.2} />
+        </mesh>
+
+        {/* Speaker Grille Pill Cutout (Bottom Right) */}
+        <mesh position={[0.26, 0, 0]}>
+          <boxGeometry args={[0.22, 0.005, 0.024]} />
+          <meshBasicMaterial color="#070a0b" />
+        </mesh>
+
+        {/* Primary Microphone Pinhole */}
+        <mesh position={[-0.14, 0, 0]}>
+          <cylinderGeometry args={[0.008, 0.008, 0.006, 12]} />
+          <meshBasicMaterial color="#030405" />
+        </mesh>
+      </group>
+
+      {/* 5. Top Rail Features: Dual Microphones + Earpiece Speaker */}
+      <group position={[0, H / 2 + 0.002, 0]}>
+        <mesh position={[-0.2, 0, 0]}>
+          <cylinderGeometry args={[0.008, 0.008, 0.006, 12]} />
+          <meshBasicMaterial color="#030405" />
+        </mesh>
+        <mesh position={[0.2, 0, 0]}>
+          <cylinderGeometry args={[0.008, 0.008, 0.006, 12]} />
+          <meshBasicMaterial color="#030405" />
+        </mesh>
+      </group>
+
+      {/* Earpiece Speaker Micro-Slit on Front Edge */}
       <mesh position={[0, H / 2 - 0.018, D / 2 + 0.003]}>
         <boxGeometry args={[0.22, 0.006, 0.004]} />
         <meshBasicMaterial color="#060908" />
       </mesh>
 
-      {/* Ultra-Narrow Display Bezel */}
+      {/* 6. Front Razor Bezel & Display Glass */}
       <mesh position={[0, 0, D / 2 + 0.002]}>
         <planeGeometry args={[W - 0.032, H - 0.036]} />
         <meshPhysicalMaterial color="#030504" roughness={0.12} metalness={0.08} />
@@ -193,7 +259,7 @@ export const RealDeviceChassis: React.FC<DeviceChassisProps> = ({
         <meshBasicMaterial map={screenTexture} toneMapped={false} />
       </mesh>
 
-      {/* Infinity-O Centered Punch Hole Selfie Camera with Optical Lens Reflection */}
+      {/* Infinity-O Centered Punch Hole Selfie Camera with Optical Pupil Reflection */}
       <mesh position={[0, H / 2 - 0.08, D / 2 + 0.005]}>
         <circleGeometry args={[0.024, 20]} />
         <meshBasicMaterial color="#020304" />
@@ -203,24 +269,40 @@ export const RealDeviceChassis: React.FC<DeviceChassisProps> = ({
         <meshBasicMaterial color="#34d399" />
       </mesh>
 
-      {/* Rear S24 Ultra Floating Camera Lens Rings (arranged vertically on upper left) */}
+      {/* 7. Rear Glass Backplate & Samsung Galaxy S24 Ultra Floating Camera System */}
+      {/* Frosted Corning Gorilla Glass Armor Backplate */}
+      <mesh position={[0, 0, -D / 2 - 0.002]} rotation={[0, Math.PI, 0]}>
+        <planeGeometry args={[W - 0.02, H - 0.02]} />
+        <meshPhysicalMaterial
+          color="#12161a"
+          metalness={0.65}
+          roughness={0.32}
+          clearcoat={0.6}
+          clearcoatRoughness={0.2}
+        />
+      </mesh>
+
+      {/* Rear SAMSUNG Engraved Logo (lower center) */}
+      <mesh position={[0, -0.82, -D / 2 - 0.003]} rotation={[0, Math.PI, 0]}>
+        <planeGeometry args={[0.32, 0.045]} />
+        <meshPhysicalMaterial color="#3c464e" metalness={0.9} roughness={0.2} />
+      </mesh>
+
+      {/* S24 Ultra Floating 5-Camera Array (upper left) */}
       <group position={[-0.34, 0, -D / 2 - 0.018]}>
         {/* Lens 1: 200MP Main Wide */}
         <group position={[0, 0.88, 0]} rotation={[Math.PI / 2, 0, 0]}>
-          {/* Titanium Outer Knurled Ring */}
           <mesh>
             <cylinderGeometry args={[0.13, 0.13, 0.038, 28]} />
-            <meshPhysicalMaterial color="#222b27" metalness={0.96} roughness={0.18} />
+            <meshPhysicalMaterial color="#26302c" metalness={0.96} roughness={0.16} />
           </mesh>
-          {/* Sapphire Glass Disc */}
           <mesh position={[0, -0.016, 0]}>
             <cylinderGeometry args={[0.11, 0.11, 0.01, 24]} />
             <meshPhysicalMaterial color="#080d0a" metalness={0.9} roughness={0.08} />
           </mesh>
-          {/* Inner Optical Pupil */}
           <mesh position={[0, -0.021, 0]}>
             <cylinderGeometry args={[0.065, 0.065, 0.004, 18]} />
-            <meshBasicMaterial color="#05170f" />
+            <meshBasicMaterial color="#072216" />
           </mesh>
         </group>
 
@@ -228,7 +310,7 @@ export const RealDeviceChassis: React.FC<DeviceChassisProps> = ({
         <group position={[0, 0.54, 0]} rotation={[Math.PI / 2, 0, 0]}>
           <mesh>
             <cylinderGeometry args={[0.13, 0.13, 0.038, 28]} />
-            <meshPhysicalMaterial color="#222b27" metalness={0.96} roughness={0.18} />
+            <meshPhysicalMaterial color="#26302c" metalness={0.96} roughness={0.16} />
           </mesh>
           <mesh position={[0, -0.016, 0]}>
             <cylinderGeometry args={[0.11, 0.11, 0.01, 24]} />
@@ -236,32 +318,32 @@ export const RealDeviceChassis: React.FC<DeviceChassisProps> = ({
           </mesh>
           <mesh position={[0, -0.021, 0]}>
             <cylinderGeometry args={[0.065, 0.065, 0.004, 18]} />
-            <meshBasicMaterial color="#05170f" />
+            <meshBasicMaterial color="#072216" />
           </mesh>
         </group>
 
-        {/* Lens 3: 50MP Periscope Telephoto */}
+        {/* Lens 3: 50MP 5x Periscope Telephoto with Rectangular Aperture */}
         <group position={[0, 0.2, 0]} rotation={[Math.PI / 2, 0, 0]}>
           <mesh>
             <cylinderGeometry args={[0.13, 0.13, 0.038, 28]} />
-            <meshPhysicalMaterial color="#222b27" metalness={0.96} roughness={0.18} />
+            <meshPhysicalMaterial color="#26302c" metalness={0.96} roughness={0.16} />
           </mesh>
           <mesh position={[0, -0.016, 0]}>
             <cylinderGeometry args={[0.11, 0.11, 0.01, 24]} />
             <meshPhysicalMaterial color="#080d0a" metalness={0.9} roughness={0.08} />
           </mesh>
+          {/* Periscope Rectangular Prism Aperture */}
           <mesh position={[0, -0.021, 0]}>
-            <cylinderGeometry args={[0.065, 0.065, 0.004, 18]} />
-            <meshBasicMaterial color="#05170f" />
+            <boxGeometry args={[0.075, 0.004, 0.058]} />
+            <meshBasicMaterial color="#04120c" />
           </mesh>
         </group>
 
-        {/* Right sub-column: Laser AF + LED Flash + 10MP Telephoto */}
+        {/* Right sub-column: Laser AF + LED Flash + 10MP 3x Telephoto */}
         <group position={[0.26, 0.88, 0]} rotation={[Math.PI / 2, 0, 0]}>
-          {/* Laser Auto Focus Sensor */}
           <mesh>
             <cylinderGeometry args={[0.058, 0.058, 0.025, 20]} />
-            <meshPhysicalMaterial color="#1a221e" metalness={0.92} roughness={0.2} />
+            <meshPhysicalMaterial color="#1f2824" metalness={0.94} roughness={0.18} />
           </mesh>
           <mesh position={[0, -0.012, 0]}>
             <cylinderGeometry args={[0.045, 0.045, 0.006, 16]} />
@@ -269,11 +351,11 @@ export const RealDeviceChassis: React.FC<DeviceChassisProps> = ({
           </mesh>
         </group>
 
-        {/* Dual-Tone LED Flash */}
+        {/* Dual-Tone LED Flash with Fresnel Pattern */}
         <group position={[0.26, 0.68, 0]} rotation={[Math.PI / 2, 0, 0]}>
           <mesh>
             <cylinderGeometry args={[0.045, 0.045, 0.02, 16]} />
-            <meshPhysicalMaterial color="#262f2b" metalness={0.9} roughness={0.25} />
+            <meshPhysicalMaterial color="#2c3631" metalness={0.92} roughness={0.2} />
           </mesh>
           <mesh position={[0, -0.009, 0]}>
             <cylinderGeometry args={[0.035, 0.035, 0.006, 16]} />
@@ -281,11 +363,11 @@ export const RealDeviceChassis: React.FC<DeviceChassisProps> = ({
           </mesh>
         </group>
 
-        {/* 3x Optical Telephoto Lens */}
+        {/* 10MP 3x Optical Telephoto Lens */}
         <group position={[0.26, 0.44, 0]} rotation={[Math.PI / 2, 0, 0]}>
           <mesh>
             <cylinderGeometry args={[0.095, 0.095, 0.03, 24]} />
-            <meshPhysicalMaterial color="#222b27" metalness={0.96} roughness={0.18} />
+            <meshPhysicalMaterial color="#26302c" metalness={0.96} roughness={0.16} />
           </mesh>
           <mesh position={[0, -0.012, 0]}>
             <cylinderGeometry args={[0.078, 0.078, 0.008, 20]} />
